@@ -1,0 +1,19 @@
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore VS Code settings folder
+.vscode/
+
+# Ignore local environment files
+.env
+
+# Ignore datasets
+*.csv
+*.json
+dataset/
+
+# Ignore build/output folders
+dist/
+build/
+
