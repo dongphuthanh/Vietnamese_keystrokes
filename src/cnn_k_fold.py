@@ -10,6 +10,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from collections import Counter
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
+from sklearn.model_selection import GroupKFold
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import RobustScaler
 
@@ -17,7 +18,7 @@ X=[] #Shape: (num_windows, window_length, feature)
 Y=[] #label, Shape (num_windows)
 ID=[]
 
-def make_windows(filepath,X,Y,ID,id,win_length=350,stride=90):
+def make_windows(filepath,X,Y,ID,id,win_length=200,stride=50):
     with open(filepath, "r", encoding="utf8") as f:
         data = json.load(f)
     _keystrokes=data.get("keystrokes")
@@ -155,114 +156,101 @@ class TemporalCNN(nn.Module):
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Use GroupShuffleSplit to ensure windows from the same ID stay together
-gss = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
+n_splits = 5
+gkf = GroupKFold(n_splits=n_splits)
+fold_accuracies = []
 
-# This returns indices that keep groups (IDs) separate
-train_idx, test_idx = next(gss.split(X, Y, groups=ID))
+# Global results to build one final confusion matrix
+all_true_labels = []
+all_pred_labels = []
 
-X_train, X_test = X[train_idx], X[test_idx]
-Y_train, Y_test = Y[train_idx], Y[test_idx]
-
-scaler = RobustScaler() # Everything else stays the same
-
-# 1. Isolate and flatten
-train_dt_col = X_train[:, :, 0].reshape(-1, 1)
-test_dt_col = X_test[:, :, 0].reshape(-1, 1)
-
-# 2. Fit and transform
-X_train[:, :, 0] = scaler.fit_transform(train_dt_col).reshape(X_train.shape[0], X_train.shape[1])
-X_test[:, :, 0] = scaler.transform(test_dt_col).reshape(X_test.shape[0], X_test.shape[1])
-
-train_dataset = TensorDataset(torch.tensor(X_train, dtype=torch.float32),
-                              torch.tensor(Y_train, dtype=torch.long))
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-
-test_dataset = TensorDataset(torch.tensor(X_test, dtype=torch.float32),
-                             torch.tensor(Y_test, dtype=torch.long))
-test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
-
-model = TemporalCNN(feature_dim=X.shape[2], num_classes=len(np.unique(Y))).to(device)
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
-
-num_epochs = 150
-for epoch in range(num_epochs):
-    model.train()
-    epoch_loss = 0
-    for xb, yb in train_loader:
-        xb, yb = xb.to(device), yb.to(device)
-        optimizer.zero_grad()
-        loss = criterion(model(xb), yb)
-        loss.backward()
-        optimizer.step()
-        epoch_loss += loss.item()
-    scheduler.step()
-    avg_loss = epoch_loss / len(train_loader)
-    if (epoch+1) % 10 == 0:
-        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+print(f"Starting {n_splits}-Fold Group Cross-Validation...\n")
 
 
-# -------------------------------
-# 6. Evaluation
-# -------------------------------
-model.eval()
-# Dictionary key: (user_id, session_label) -> value: [list of window predictions]
-session_results = {} 
 
-with torch.no_grad():
-    # Use the test_idx to align IDs with the test_loader
-    test_ids = ID[test_idx]
+for fold, (train_idx, test_idx) in enumerate(gkf.split(X, Y, groups=ID)):
+    print(f"--- Fold {fold + 1}/{n_splits} ---")
     
+    # Split
+    X_train_fold, X_test_fold = X[train_idx].copy(), X[test_idx].copy()
+    Y_train_fold, Y_test_fold = Y[train_idx], Y[test_idx]
+    test_ids_fold = ID[test_idx]
+
+    # --- Robust Scaling (Selective for log(dt)) ---
+    scaler = RobustScaler()
+    train_dt = X_train_fold[:, :, 0].reshape(-1, 1)
+    test_dt = X_test_fold[:, :, 0].reshape(-1, 1)
+    
+    X_train_fold[:, :, 0] = scaler.fit_transform(train_dt).reshape(X_train_fold.shape[0], X_train_fold.shape[1])
+    X_test_fold[:, :, 0] = scaler.transform(test_dt).reshape(X_test_fold.shape[0], X_test_fold.shape[1])
+
+    # Dataloaders
+    train_ds = TensorDataset(torch.tensor(X_train_fold, dtype=torch.float32), torch.tensor(Y_train_fold, dtype=torch.long))
+    test_ds = TensorDataset(torch.tensor(X_test_fold, dtype=torch.float32), torch.tensor(Y_test_fold, dtype=torch.long))
+    train_loader = DataLoader(train_ds, batch_size=64, shuffle=True)
+    test_loader = DataLoader(test_ds, batch_size=64, shuffle=False)
+
+    # Initialize Model, Optimizer, Scheduler
+    model = TemporalCNN(feature_dim=X.shape[2], num_classes=len(np.unique(Y))).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    criterion = nn.CrossEntropyLoss()
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
+
+    # Training Loop
+    num_epochs = 100 # Reduced slightly for time, adjust as needed
+    for epoch in range(num_epochs):
+        model.train()
+        for xb, yb in train_loader:
+            xb, yb = xb.to(device), yb.to(device)
+            optimizer.zero_grad()
+            loss = criterion(model(xb), yb)
+            loss.backward()
+            optimizer.step()
+        scheduler.step()
+
+    # Evaluation for this Fold
+    model.eval()
+    session_results = {}
     current_idx = 0
-    for xb, yb in test_loader:
-        xb, yb = xb.to(device), yb.to(device)
-        out = model(xb)
-        preds = torch.argmax(F.softmax(out, dim=1), dim=1).cpu().numpy()
-        labels = yb.cpu().numpy()
+    with torch.no_grad():
+        for xb, yb in test_loader:
+            xb, yb = xb.to(device), yb.to(device)
+            out = model(xb)
+            preds = torch.argmax(out, dim=1).cpu().numpy()
+            labels = yb.cpu().numpy()
+            
+            batch_ids = test_ids_fold[current_idx : current_idx + len(xb)]
+            current_idx += len(xb)
+
+            for j in range(len(preds)):
+                key = (batch_ids[j], labels[j])
+                if key not in session_results: session_results[key] = []
+                session_results[key].append(preds[j])
+
+    # Aggregate session votes for this fold
+    fold_preds = []
+    fold_labels = []
+    for (uid, true_lab), preds_list in session_results.items():
+        majority_vote = Counter(preds_list).most_common(1)[0][0]
+        fold_preds.append(majority_vote)
+        fold_labels.append(true_lab)
         
-        # Get the IDs for this specific batch
-        batch_ids = test_ids[current_idx : current_idx + len(xb)]
-        current_idx += len(xb)
+        # Save for global confusion matrix
+        all_pred_labels.append(majority_vote)
+        all_true_labels.append(true_lab)
 
-        for j in range(len(preds)):
-            uid = batch_ids[j]
-            true_lab = labels[j]
-            
-            # Unique key for the specific user's specific session
-            session_key = (uid, true_lab)
-            
-            if session_key not in session_results:
-                session_results[session_key] = []
-            session_results[session_key].append(preds[j])
+    fold_acc = np.mean(np.array(fold_preds) == np.array(fold_labels))
+    fold_accuracies.append(fold_acc)
+    print(f"Fold {fold+1} Session Accuracy: {fold_acc:.4f}\n")
 
-# --- Aggregate and Show Results ---
-all_session_preds = []
-all_session_labels = []
+# --- FINAL SUMMARY ---
+print("-" * 30)
+print(f"Average CV Accuracy: {np.mean(fold_accuracies):.4f} (+/- {np.std(fold_accuracies):.4f})")
+print("-" * 30)
 
-print(f"{'User ID':<10} | {'True Session':<15} | {'Majority Pred':<15} | {'Status'}")
-print("-" * 60)
-
-for (uid, true_label), preds in session_results.items():
-    # Majority vote for this specific session
-    majority_vote = Counter(preds).most_common(1)[0][0]
-    
-    all_session_preds.append(majority_vote)
-    all_session_labels.append(true_label)
-    
-    label_map = {0: "bonafide", 1: "paraphrase", 2: "transcribe"}
-    status = "✅" if majority_vote == true_label else "❌"
-    
-    print(f"{uid:<10} | {label_map[true_label]:<15} | {label_map[majority_vote]:<15} | {status}")
-
-# --- Final Metrics & Confusion Matrix ---
-session_accuracy = np.mean(np.array(all_session_preds) == np.array(all_session_labels))
-print(f"\nPer-Session Accuracy: {session_accuracy:.4f}")
-
-# Plot Session-Level Confusion Matrix
-cm = confusion_matrix(all_session_labels, all_session_preds)
+# Plot Final Integrated Confusion Matrix
+cm = confusion_matrix(all_true_labels, all_pred_labels)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["bonafide", "paraphrase", "transcribe"])
 disp.plot(cmap=plt.cm.Purples)
-plt.title("Per-User-Session Confusion Matrix")
+plt.title(f"Aggregated {n_splits}-Fold Confusion Matrix")
 plt.show()
