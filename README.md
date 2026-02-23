@@ -2,8 +2,7 @@
 ## Dataset
 Download dataset: https://drive.google.com/drive/folders/1ZjGDdipbasBNizL3zXuuy9X_OFKBC2QT?usp=sharing
 ## Project structure
-Vietnamese_keystrokes/
-
+Vietnamese_keystrokes/ <br>
 ├── src/ <br>
 │ └── cnn.py <br>
 ├── dataset/  <br>
