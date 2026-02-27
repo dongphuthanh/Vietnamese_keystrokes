@@ -11,95 +11,20 @@ from collections import Counter
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 from sklearn.model_selection import GroupKFold
-from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import RobustScaler
+from cnn_gen_data import make_windows
+from cnn_gen_data import TemporalCNN
+
+WIN_LENGTH = 200
+STRIDE = 50
 
 X=[] #Shape: (num_windows, window_length, feature)
 Y=[] #label, Shape (num_windows)
 ID=[]
 
-def make_windows(filepath,X,Y,ID,id,win_length=200,stride=50):
-    with open(filepath, "r", encoding="utf8") as f:
-        data = json.load(f)
-    _keystrokes=data.get("keystrokes")
-    keystrokes=[]
-    for i in range(len(_keystrokes)):
-        if _keystrokes[i]["event"]=="keydown":
-            keystrokes.append(_keystrokes[i])
-    session2_idx=-1
-    session3_idx=-1
-    for i in range(len(keystrokes)):
-        if keystrokes[i]["session"]==2 and session2_idx==-1:
-            session2_idx=i
-        if keystrokes[i]["session"]==3 and session3_idx==-1:
-            session3_idx=i
-            break
-    i=1
-    while i<session2_idx-win_length:
-        window=[]
-        for j in range(i,i+win_length):
-            a=[]
-            dt=keystrokes[j]["timestamp"]-keystrokes[j-1]["timestamp"]
-            dt = np.clip(dt, 1, 5000)
-            a.append(np.log(dt))
-            if keystrokes[j]["key"]==" ":
-                a.append(1)
-            else:
-                a.append(0)
-            if keystrokes[j]["key"]=="Backspace":
-                a.append(1)
-            else:
-                a.append(0)
-            window.append(a)
-        X.append(window)
-        Y.append(0)
-        ID.append(id)
-        i+=stride
-
-    i=session2_idx+1
-    while i<session3_idx-win_length:
-        window=[]
-        for j in range(i,i+win_length):
-            a=[]
-            dt=keystrokes[j]["timestamp"]-keystrokes[j-1]["timestamp"]
-            dt = np.clip(dt, 1, 5000)
-            a.append(np.log(dt))
-            if keystrokes[j]["key"]==" ":
-                a.append(1)
-            else:
-                a.append(0)
-            if keystrokes[j]["key"]=="Backspace":
-                a.append(1)
-            else:
-                a.append(0)
-            window.append(a)
-        X.append(window)
-        Y.append(1)
-        ID.append(id)
-        i+=stride
-
-    i=session3_idx+1
-    while i<len(keystrokes)-win_length:
-        window=[]
-        for j in range(i,i+win_length):
-            a=[]
-            dt=keystrokes[j]["timestamp"]-keystrokes[j-1]["timestamp"]
-            dt = np.clip(dt, 1, 5000)
-            a.append(np.log(dt))
-            if keystrokes[j]["key"]==" ":
-                a.append(1)
-            else:
-                a.append(0)
-            if keystrokes[j]["key"]=="Backspace":
-                a.append(1)
-            else:
-                a.append(0)
-            window.append(a)
-        X.append(window)
-        Y.append(2)
-        ID.append(id)
-        i+=stride
-#folder_path="keystroke_sessions_only"
+"""
+Generate windows from the dataset
+"""
 folder_path = "../dataset/viet_preprocessed"
 user_folders = sorted([d for d in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, d))])
 user2id = {user: i for i, user in enumerate(user_folders)}
@@ -113,45 +38,17 @@ for user_folder in user_folders:
             if filename.endswith(".json"):
                 filepath = os.path.join(root, filename)
                 # Make windows for this file, passing the correct user_id
-                make_windows(filepath, X, Y, ID, user_id)
+                make_windows(filepath, X, Y, ID, user_id, WIN_LENGTH, STRIDE)
 
 
-#Split dataset
+
 X = np.array(X)  # shape: (num_windows, window_size, feature_dim)
-print(X.shape[0])
+print("X: ", X.shape)
 Y = np.array(Y)  # shape: (num_windows,)
+print("Y: ",Y.shape)
+ID = np.array(ID) # shape: (num_windows,)
+print("ID: ", ID.shape)
 
-ID = np.array(ID) 
-class TemporalCNN(nn.Module):
-    def __init__(self, feature_dim, num_classes):
-        super().__init__()
-        self.conv1 = nn.Conv1d(in_channels=feature_dim, out_channels=64, kernel_size=3, padding=1)
-        self.bn1=nn.BatchNorm1d(64)
-        self.dropout1=nn.Dropout(0.3)
-        self.conv2 = nn.Conv1d(64, 128, kernel_size=5, padding=1)
-        self.bn2=nn.BatchNorm1d(128)
-        self.dropout2=nn.Dropout(0.3)
-        self.conv3=nn.Conv1d(128,256,kernel_size=5,padding=1)
-        self.bn3=nn.BatchNorm1d(256)
-        self.dropout3=nn.Dropout(0.2)
-        self.pool = nn.AdaptiveMaxPool1d(1)
-        self.fc = nn.Linear(256, num_classes)
-        
-    def forward(self, x):
-        # x: (batch, seq_len, feature_dim)
-        x = x.permute(0, 2, 1)  # (batch, feature_dim, seq_len)
-        x = self.conv1(x)
-        x=F.relu(self.bn1(x))
-        x=self.dropout1(x)
-        x = self.conv2(x)
-        x=F.relu(self.bn2(x))
-        x=self.dropout2(x)
-        x = self.conv3(x)
-        x=F.relu(self.bn3(x))
-        x=self.dropout3(x)
-        x = self.pool(x).squeeze(-1)  # (batch, 128)
-        x = self.fc(x)  # (batch, num_classes)
-        return x
     
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -192,9 +89,9 @@ for fold, (train_idx, test_idx) in enumerate(gkf.split(X, Y, groups=ID)):
 
     # Initialize Model, Optimizer, Scheduler
     model = TemporalCNN(feature_dim=X.shape[2], num_classes=len(np.unique(Y))).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss()
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
 
     # Training Loop
     num_epochs = 100 # Reduced slightly for time, adjust as needed
