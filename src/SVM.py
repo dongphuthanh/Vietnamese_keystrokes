@@ -81,7 +81,7 @@ def load_xy(csv_path: Path):
         raise ValueError(f"{csv_path} missing required column 'label'.")
 
     y = df["label"]
-    drop_cols = [c for c in ["user_id", 'session','section' "label"] if c in df.columns]
+    drop_cols = [c for c in ["user_id", 'session','section', "label"] if c in df.columns]
     X = df.drop(columns=drop_cols)
     return X, y
 
