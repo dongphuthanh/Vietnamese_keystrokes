@@ -84,7 +84,7 @@ def load_xy(csv_path: Path) -> Tuple[pd.DataFrame, pd.Series]:
         raise ValueError(f"{csv_path} missing required column 'label'.")
 
     y = df["label"]
-    drop_cols = [c for c in ["user_id", "part", "label"] if c in df.columns]
+    drop_cols = [c for c in ["user_id", 'session','section' "label"] if c in df.columns]
     X = df.drop(columns=drop_cols)
 
     if X.shape[1] == 0:
