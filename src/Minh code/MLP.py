@@ -1,24 +1,24 @@
-#!/usr/bin/env python3
-"""
-Run GA-tuned XGBoost on a train/test CSV pair.
 
-Expected columns in CSV:
+(''
+ '')#!/usr/bin/env python3
+"""
+Run GA-tuned MLPClassifier on a train/test CSV pair.
+
+Expected CSV columns:
 - label (required)
 - user_id, part (optional; will be dropped if present)
-All other columns are treated as features.
+All remaining columns are treated as numeric features.
 
 Example:
-  python run_xgb_ga.py --train /path/train.csv --test /path/test.csv --outdir ./runs/run1
+  python run_mlp_ga.py --train /path/train.csv --test /path/test.csv --outdir ./runs/mlp_exp1
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import random
 import time
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple, Any, Optional
@@ -30,11 +30,9 @@ from deap import base, creator, tools, algorithms
 from sklearn.feature_selection import mutual_info_classif
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
-from xgboost import XGBClassifier
-
-warnings.filterwarnings("ignore")
 
 
 # ----------------------------
@@ -47,7 +45,7 @@ class GAConfig:
     generations: int = 10
     cxpb: float = 0.5
     mutpb: float = 0.2
-    indpb: float = 0.2        # per-gene mutation probability
+    indpb: float = 0.2
     tournsize: int = 3
     cv_splits: int = 5
     n_jobs_cv: int = -1
@@ -57,16 +55,19 @@ class GAConfig:
 class ExperimentConfig:
     feature_percentage: float = 50.0
     random_state: int = 42
+    max_iter: int = 500
     ga: GAConfig = GAConfig()
 
 
-# Hyperparameter search space (same as yours)
+# ----------------------------
+# MLP Hyperparameter Space
+# ----------------------------
+
 PARAM_SPACE: Dict[str, List[Any]] = {
-    "max_depth": list(range(3, 11)),
-    "learning_rate": [0.01, 0.05, 0.1, 0.2, 0.3],
-    "n_estimators": list(range(50, 551, 50)),
-    "subsample": [0.6, 0.7, 0.8, 0.9, 1.0],
-    "colsample_bytree": [0.6, 0.7, 0.8, 0.9, 1.0],
+    "hidden_layer_sizes": [(50,), (100,), (50, 50), (100, 50)],
+    "activation": ["relu", "tanh", "logistic"],
+    "alpha": [0.0001, 0.001, 0.01],
+    "learning_rate": ["constant", "adaptive"],
 }
 
 
@@ -79,20 +80,18 @@ def set_seeds(seed: int) -> None:
     np.random.seed(seed)
 
 
-def ensure_outdir(outdir: Path) -> None:
-    outdir.mkdir(parents=True, exist_ok=True)
-
-
 def load_xy(csv_path: Path) -> Tuple[pd.DataFrame, pd.Series]:
     df = pd.read_csv(csv_path)
     if "label" not in df.columns:
         raise ValueError(f"{csv_path} missing required column 'label'.")
 
     y = df["label"]
-    drop_cols = [c for c in ["user_id", 'session','section', "label"] if c in df.columns]
+    drop_cols = [c for c in ["user_id", 'session', 'section', "label", "file", "source"] if c in df.columns]
     X = df.drop(columns=drop_cols)
+
     if X.shape[1] == 0:
         raise ValueError(f"{csv_path} has no feature columns after dropping {drop_cols}.")
+
     return X, y
 
 
@@ -102,9 +101,6 @@ def select_features_mutual_info(
     feature_percentage: float,
     random_state: int,
 ) -> Tuple[List[str], pd.DataFrame]:
-    """
-    Returns (selected_feature_names, mi_ranking_df)
-    """
     if not (0 < feature_percentage <= 100):
         raise ValueError("feature_percentage must be in (0, 100].")
 
@@ -114,6 +110,7 @@ def select_features_mutual_info(
         discrete_features=False,
         random_state=random_state,
     )
+
     mi_df = (
         pd.DataFrame({"feature": X_train.columns, "mi_score": mi})
         .sort_values("mi_score", ascending=False)
@@ -126,13 +123,13 @@ def select_features_mutual_info(
 
 
 # ----------------------------
-# DEAP setup (safe / idempotent)
+# DEAP (safe / idempotent)
 # ----------------------------
 
 def ensure_deap_creators() -> None:
     """
-    DEAP 'creator' is global and will error if you create the same classes twice.
-    Make it idempotent so the module is reusable.
+    DEAP creator is global; creating the same class twice throws.
+    Make it safe for repeated runs.
     """
     if not hasattr(creator, "FitnessMax"):
         creator.create("FitnessMax", base.Fitness, weights=(1.0,))
@@ -140,30 +137,27 @@ def ensure_deap_creators() -> None:
         creator.create("Individual", list, fitness=creator.FitnessMax)
 
 
-def custom_mutation(individual: creator.Individual, indpb: float):
-    # layout: [max_depth, learning_rate, n_estimators, subsample, colsample_bytree]
+def custom_mutation(individual, indpb: float):
     if random.random() < indpb:
-        individual[0] = random.choice(PARAM_SPACE["max_depth"])
+        individual[0] = random.choice(PARAM_SPACE["hidden_layer_sizes"])
     if random.random() < indpb:
-        individual[1] = random.choice(PARAM_SPACE["learning_rate"])
+        individual[1] = random.choice(PARAM_SPACE["activation"])
     if random.random() < indpb:
-        individual[2] = random.choice(PARAM_SPACE["n_estimators"])
+        individual[2] = random.choice(PARAM_SPACE["alpha"])
     if random.random() < indpb:
-        individual[3] = random.choice(PARAM_SPACE["subsample"])
-    if random.random() < indpb:
-        individual[4] = random.choice(PARAM_SPACE["colsample_bytree"])
+        individual[3] = random.choice(PARAM_SPACE["learning_rate"])
     return (individual,)
 
 
-def xgb_genetic_algorithm(
+# ----------------------------
+# GA for MLP
+# ----------------------------
+
+def mlp_genetic_algorithm(
     X_train: pd.DataFrame,
     y_train: pd.Series,
     cfg: ExperimentConfig,
 ) -> Tuple[Dict[str, Any], float]:
-    """
-    GA-based hyperparameter tuning for XGBClassifier using StratifiedKFold CV.
-    Returns (best_params, best_cv_accuracy).
-    """
     ensure_deap_creators()
     ga = cfg.ga
 
@@ -174,21 +168,20 @@ def xgb_genetic_algorithm(
     )
 
     def evaluate(individual):
-        clf = XGBClassifier(
-            max_depth=individual[0],
-            learning_rate=individual[1],
-            n_estimators=individual[2],
-            subsample=individual[3],
-            colsample_bytree=individual[4],
-            eval_metric="mlogloss",
+        clf = MLPClassifier(
+            hidden_layer_sizes=individual[0],
+            activation=individual[1],
+            alpha=individual[2],
+            learning_rate=individual[3],
+            max_iter=cfg.max_iter,
             random_state=cfg.random_state,
         )
-        pipeline = Pipeline(
-            [
-                ("scaler", MinMaxScaler()),
-                ("classifier", clf),
-            ]
-        )
+
+        pipeline = Pipeline([
+            ("scaler", MinMaxScaler()),
+            ("classifier", clf),
+        ])
+
         scores = cross_val_score(
             pipeline,
             X_train,
@@ -201,23 +194,16 @@ def xgb_genetic_algorithm(
 
     toolbox = base.Toolbox()
 
-    toolbox.register("attr_max_depth", random.choice, PARAM_SPACE["max_depth"])
-    toolbox.register("attr_learning_rate", random.choice, PARAM_SPACE["learning_rate"])
-    toolbox.register("attr_n_estimators", random.choice, PARAM_SPACE["n_estimators"])
-    toolbox.register("attr_subsample", random.choice, PARAM_SPACE["subsample"])
-    toolbox.register("attr_colsample", random.choice, PARAM_SPACE["colsample_bytree"])
+    toolbox.register("attr_hidden", random.choice, PARAM_SPACE["hidden_layer_sizes"])
+    toolbox.register("attr_act", random.choice, PARAM_SPACE["activation"])
+    toolbox.register("attr_alpha", random.choice, PARAM_SPACE["alpha"])
+    toolbox.register("attr_lr", random.choice, PARAM_SPACE["learning_rate"])
 
     toolbox.register(
         "individual",
         tools.initCycle,
         creator.Individual,
-        (
-            toolbox.attr_max_depth,
-            toolbox.attr_learning_rate,
-            toolbox.attr_n_estimators,
-            toolbox.attr_subsample,
-            toolbox.attr_colsample,
-        ),
+        (toolbox.attr_hidden, toolbox.attr_act, toolbox.attr_alpha, toolbox.attr_lr),
         n=1,
     )
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
@@ -229,9 +215,9 @@ def xgb_genetic_algorithm(
 
     population = toolbox.population(n=ga.population)
 
-    print("Starting GA optimization for XGBoost...")
+    print("Starting GA optimization for MLPClassifier...")
     start = time.time()
-    result, _log = algorithms.eaSimple(
+    result, _ = algorithms.eaSimple(
         population,
         toolbox,
         cxpb=ga.cxpb,
@@ -243,33 +229,33 @@ def xgb_genetic_algorithm(
 
     best = tools.selBest(result, k=1)[0]
     best_params = {
-        "max_depth": best[0],
-        "learning_rate": best[1],
-        "n_estimators": best[2],
-        "subsample": best[3],
-        "colsample_bytree": best[4],
+        "hidden_layer_sizes": best[0],
+        "activation": best[1],
+        "alpha": best[2],
+        "learning_rate": best[3],
     }
     best_cv_acc = float(best.fitness.values[0])
     return best_params, best_cv_acc
 
 
+# ----------------------------
+# Train / Eval
+# ----------------------------
+
 def train_final_pipeline(
     X_train: pd.DataFrame,
     y_train: pd.Series,
     best_params: Dict[str, Any],
-    random_state: int,
+    cfg: ExperimentConfig,
 ) -> Pipeline:
-    pipe = Pipeline(
-        [
-            ("scaler", MinMaxScaler()),
-            ("classifier", XGBClassifier(
-                **best_params,
-                eval_metric="mlogloss",
-                random_state=random_state,
-                use_label_encoder=False,
-            )),
-        ]
-    )
+    pipe = Pipeline([
+        ("scaler", MinMaxScaler()),
+        ("classifier", MLPClassifier(
+            **best_params,
+            max_iter=cfg.max_iter,
+            random_state=cfg.random_state,
+        )),
+    ])
     pipe.fit(X_train, y_train)
     return pipe
 
@@ -282,12 +268,12 @@ def evaluate_model(
 ) -> Dict[str, Any]:
     y_pred = model.predict(X_test)
     acc = float(accuracy_score(y_test, y_pred))
-    f1 = float(f1_score(y_test, y_pred, average="weighted"))
+    f1w = float(f1_score(y_test, y_pred, average="weighted"))
     cm = confusion_matrix(y_test, y_pred, labels=labels) if labels is not None else confusion_matrix(y_test, y_pred)
 
     return {
         "test_accuracy": acc,
-        "test_weighted_f1": f1,
+        "test_weighted_f1": f1w,
         "confusion_matrix": cm.tolist(),
         "labels": labels,
     }
@@ -304,31 +290,36 @@ def run_experiment(
     cfg: ExperimentConfig,
     cm_labels: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
-    ensure_outdir(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
 
     X_train_all, y_train = load_xy(train_csv)
     X_test_all, y_test = load_xy(test_csv)
 
-    # Feature selection
     selected_features, mi_df = select_features_mutual_info(
-        X_train_all, y_train,
+        X_train_all,
+        y_train,
         feature_percentage=cfg.feature_percentage,
         random_state=cfg.random_state,
     )
+
     X_train = X_train_all[selected_features]
     X_test = X_test_all[selected_features]
 
-    # GA tuning
-    best_params, best_cv_acc = xgb_genetic_algorithm(X_train, y_train, cfg)
+    best_params, best_cv_acc = mlp_genetic_algorithm(X_train, y_train, cfg)
 
-    # Train final and evaluate
-    model = train_final_pipeline(X_train, y_train, best_params, cfg.random_state)
+    model = train_final_pipeline(X_train, y_train, best_params, cfg)
     metrics = evaluate_model(model, X_test, y_test, labels=cm_labels)
 
     # Save artifacts
+    joblib.dump(model, outdir / "model.joblib")
+    # Save predictions với source
+    test_df = pd.read_csv(test_csv)
+    y_pred = model.predict(X_test)
+    test_df_out = test_df[['label', 'source']].copy() if 'source' in test_df.columns else test_df[['label']].copy()
+    test_df_out['predicted'] = y_pred
+    test_df_out.to_csv(outdir / "predictions.csv", index=False)
     mi_df.to_csv(outdir / "mutual_info_ranking.csv", index=False)
     (outdir / "selected_features.txt").write_text("\n".join(selected_features), encoding="utf-8")
-    joblib.dump(model, outdir / "model.joblib")
 
     summary = {
         "train_csv": str(train_csv),
@@ -339,6 +330,7 @@ def run_experiment(
         "n_features_selected": int(len(selected_features)),
         "feature_percentage": cfg.feature_percentage,
         "random_state": cfg.random_state,
+        "max_iter": cfg.max_iter,
         "ga_best_cv_accuracy": best_cv_acc,
         "best_params": best_params,
         **metrics,
@@ -347,7 +339,7 @@ def run_experiment(
     with open(outdir / "results.json", "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
 
-    # Console output
+    # Console summary
     print("\n=== Final Evaluation ===")
     print(f"Train: {train_csv.name}")
     print(f"Test : {test_csv.name}")
@@ -362,26 +354,32 @@ def run_experiment(
     return summary
 
 
+# ----------------------------
+# CLI
+# ----------------------------
+
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="GA-tuned XGBoost on train/test feature CSVs.")
+    p = argparse.ArgumentParser(description="GA-tuned MLPClassifier on train/test feature CSVs.")
     p.add_argument("--train", required=True, type=Path, help="Path to training CSV.")
     p.add_argument("--test", required=True, type=Path, help="Path to testing CSV.")
     p.add_argument("--outdir", required=True, type=Path, help="Output directory for artifacts.")
 
     p.add_argument("--feature-percentage", type=float, default=50.0, help="Top %% features by mutual info to keep.")
     p.add_argument("--seed", type=int, default=42, help="Random seed.")
-    p.add_argument("--cv-splits", type=int, default=5, help="StratifiedKFold splits.")
-    p.add_argument("--population", type=int, default=50, help="GA population size.")
-    p.add_argument("--generations", type=int, default=10, help="GA generations.")
-    p.add_argument("--cxpb", type=float, default=0.5, help="GA crossover probability.")
-    p.add_argument("--mutpb", type=float, default=0.2, help="GA mutation probability.")
-    p.add_argument("--indpb", type=float, default=0.2, help="Per-gene mutation probability.")
-    p.add_argument("--tournsize", type=int, default=3, help="Tournament size.")
-    p.add_argument("--n-jobs-cv", type=int, default=-1, help="n_jobs for cross_val_score.")
+    p.add_argument("--max-iter", type=int, default=500, help="MLP max_iter.")
 
-    # Optional: fixed label order for confusion matrix
+    # GA knobs (optional overrides)
+    p.add_argument("--cv-splits", type=int, default=5)
+    p.add_argument("--population", type=int, default=50)
+    p.add_argument("--generations", type=int, default=10)
+    p.add_argument("--cxpb", type=float, default=0.5)
+    p.add_argument("--mutpb", type=float, default=0.2)
+    p.add_argument("--indpb", type=float, default=0.2)
+    p.add_argument("--tournsize", type=int, default=3)
+    p.add_argument("--n-jobs-cv", type=int, default=-1)
+
     p.add_argument("--cm-labels", type=int, nargs="*", default=None,
-                   help="Optional explicit label order for confusion matrix, e.g. --cm-labels 0 1 2")
+                   help="Optional label order for confusion matrix, e.g. --cm-labels 0 1 2")
 
     return p.parse_args()
 
@@ -393,6 +391,7 @@ def main() -> None:
     cfg = ExperimentConfig(
         feature_percentage=args.feature_percentage,
         random_state=args.seed,
+        max_iter=args.max_iter,
         ga=GAConfig(
             population=args.population,
             generations=args.generations,
@@ -422,10 +421,10 @@ def main() -> None:
 if __name__ == "__main__":
     main()
     
-#python run_xgb_ga.py \
+#python run_mlp_ga.py \
 #  --train /path/to/training.csv \
 #  --test /path/to/testing.csv \
-#  --outdir ./runs/exp1 \
+#  --outdir ./runs/mlp_exp1 \
 #  --feature-percentage 50 \
 #  --seed 42 \
 #  --cm-labels 0 1 2

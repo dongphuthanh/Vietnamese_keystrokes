@@ -83,18 +83,16 @@ def ensure_outdir(outdir: Path) -> None:
     outdir.mkdir(parents=True, exist_ok=True)
 
 
-def load_xy(csv_path: Path) -> Tuple[pd.DataFrame, pd.Series]:
+def load_xy(csv_path: Path):
     df = pd.read_csv(csv_path)
     if "label" not in df.columns:
         raise ValueError(f"{csv_path} missing required column 'label'.")
 
     y = df["label"]
-    drop_cols = [c for c in ["user_id", 'session','section', "label"] if c in df.columns]
+    drop_cols = [c for c in ["user_id", 'session', 'section', "label", "file", "source"] if c in df.columns]
     X = df.drop(columns=drop_cols)
-    if X.shape[1] == 0:
-        raise ValueError(f"{csv_path} has no feature columns after dropping {drop_cols}.")
-    return X, y
 
+    return X, y
 
 def select_features_mutual_info(
     X_train: pd.DataFrame,
@@ -329,6 +327,12 @@ def run_experiment(
     mi_df.to_csv(outdir / "mutual_info_ranking.csv", index=False)
     (outdir / "selected_features.txt").write_text("\n".join(selected_features), encoding="utf-8")
     joblib.dump(model, outdir / "model.joblib")
+    # Save predictions với source
+    test_df = pd.read_csv(test_csv)
+    y_pred = model.predict(X_test)
+    test_df_out = test_df[['label', 'source']].copy() if 'source' in test_df.columns else test_df[['label']].copy()
+    test_df_out['predicted'] = y_pred
+    test_df_out.to_csv(outdir / "predictions.csv", index=False)
 
     summary = {
         "train_csv": str(train_csv),
