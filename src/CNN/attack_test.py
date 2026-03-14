@@ -15,6 +15,11 @@ from sklearn.preprocessing import RobustScaler
 from cnn_gen_data import make_windows
 from cnn_gen_data import TemporalCNN
 import random
+from sklearn.manifold import TSNE
+import pandas as pd
+import seaborn as sns
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 def set_seed(seed=42):
     """Sets the seed for reproducibility across runs."""
@@ -246,5 +251,99 @@ ConfusionMatrixDisplay.from_predictions(
 )
 ax2.set_title(f"Attack Versions (S2 & S3)\nAccuracy: {acc_a:.2%}")
 
+plt.tight_layout()
+plt.show()
+
+
+
+def get_model_features(model, loader, original_ids, device):
+    model.eval()
+    feats, labs, ids = [], [], []
+    with torch.no_grad():
+        current_idx = 0
+        for xb, yb in loader:
+            xb = xb.to(device)
+            # Ensure your TemporalCNN forward accepts return_features=True
+            f = model(xb, return_features=True)
+            feats.append(f.cpu().numpy())
+            labs.append(yb.numpy())
+            # Align IDs with batch indices
+            ids.append(original_ids[current_idx : current_idx + len(xb)])
+            current_idx += len(xb)
+    return np.concatenate(feats), np.concatenate(labs), np.concatenate(ids)
+
+# ---------------------------------------------------------
+# 5. Clean Data t-SNE Plotting
+# ---------------------------------------------------------
+print("\n--- Generating Clearer t-SNE ---")
+f_c, l_c, i_c = get_model_features(model, clean_loader, ID_test_clean, device)
+
+# --- STEP 1: Standardize CNN Features ---
+# This ensures every "neuron" has equal weight in the t-SNE distance
+f_c_scaled = StandardScaler().fit_transform(f_c)
+
+# --- STEP 2: Aggregate to Centroids (Optional but Recommended) ---
+# This plots 1 point per user-session instead of 1 point per window
+use_centroids = True 
+
+if use_centroids:
+    unique_sessions = []
+    agg_features = []
+    agg_labels = []
+    
+    # Create unique keys for (User, SessionType)
+    for uid in np.unique(i_c):
+        for lab in np.unique(l_c):
+            mask = (i_c == uid) & (l_c == lab)
+            if np.any(mask):
+                agg_features.append(np.mean(f_c_scaled[mask], axis=0))
+                agg_labels.append(lab)
+    
+    f_final = np.array(agg_features)
+    l_final = np.array(agg_labels)
+    point_size = 100 # Larger points for centroids
+else:
+    # Use your existing subsampling logic if you want all windows
+    sub_idx = []
+    for label in [0, 1, 2]:
+        idx = np.where(l_c == label)[0]
+        if len(idx) > 0:
+            sub_idx.extend(np.random.choice(idx, min(400, len(idx)), replace=False))
+    f_final = f_c_scaled[sub_idx]
+    l_final = l_c[sub_idx]
+    point_size = 35
+
+# --- STEP 3: PCA + t-SNE ---
+n_comp = min(30, f_final.shape[0] - 1)
+f_pca = PCA(n_components=n_comp).fit_transform(f_final)
+
+# Increased Early Exaggeration helps clusters push away from each other
+tsne = TSNE(
+    n_components=2, 
+    perplexity=10, 
+    early_exaggeration=12, 
+    random_state=SEED, 
+    init='pca', 
+    learning_rate='auto'
+)
+proj = tsne.fit_transform(f_pca)
+
+# --- STEP 4: Visualization ---
+plt.figure(figsize=(10, 7))
+label_map = {0: "Bonafide", 1: "Paraphrase", 2: "Transcribe"}
+df = pd.DataFrame({
+    'TSNE-1': proj[:, 0], 
+    'TSNE-2': proj[:, 1],
+    'Task': [label_map[l] for l in l_final]
+})
+
+sns.scatterplot(
+    data=df, x='TSNE-1', y='TSNE-2', 
+    hue='Task', style='Task',
+    palette='Set1', s=point_size, alpha=0.8, edgecolor='w'
+)
+
+plt.title(f"t-SNE: {'Session Centroids' if use_centroids else 'Window Samples'}")
+plt.grid(True, linestyle='--', alpha=0.3)
 plt.tight_layout()
 plt.show()
