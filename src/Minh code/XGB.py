@@ -307,6 +307,12 @@ def run_experiment(
     X_train_all, y_train = load_xy(train_csv)
     X_test_all, y_test = load_xy(test_csv)
 
+    # Remap labels về 0,1,2 liên tục dựa trên train labels
+    unique_labels = sorted(y_train.unique())
+    label_map = {v: i for i, v in enumerate(unique_labels)}
+    y_train = y_train.map(label_map)
+    y_test = y_test.map(label_map)
+
     # Feature selection
     selected_features, mi_df = select_features_mutual_info(
         X_train_all, y_train,
