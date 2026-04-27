@@ -31,9 +31,9 @@ from sklearn.feature_selection import mutual_info_classif
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from xgboost import XGBClassifier
-
+    
 warnings.filterwarnings("ignore")
 
 
@@ -266,7 +266,6 @@ def train_final_pipeline(
                 **best_params,
                 eval_metric="mlogloss",
                 random_state=random_state,
-                use_label_encoder=False,
             )),
         ]
     )
@@ -279,10 +278,11 @@ def evaluate_model(
     X_test: pd.DataFrame,
     y_test: pd.Series,
     labels: Optional[List[int]] = None,
+    y_pred_override: Optional[pd.Series] = None,
 ) -> Dict[str, Any]:
-    y_pred = model.predict(X_test)
+    y_pred = y_pred_override if y_pred_override is not None else model.predict(X_test)
     acc = float(accuracy_score(y_test, y_pred))
-    f1 = float(f1_score(y_test, y_pred, average="weighted"))
+    f1 = float(f1_score(y_test, y_pred, average="weighted", zero_division=0))
     cm = confusion_matrix(y_test, y_pred, labels=labels) if labels is not None else confusion_matrix(y_test, y_pred)
 
     return {
@@ -309,9 +309,15 @@ def run_experiment(
     X_train_all, y_train = load_xy(train_csv)
     X_test_all, y_test = load_xy(test_csv)
 
-    # Feature selection
+    # Encode labels to contiguous 0-based integers (XGBoost requirement).
+    # M2/M3/M4 training sets may only have a subset of labels (e.g. [0,2]),
+    # so we remap them to [0,1,...] and inverse-transform predictions afterwards.
+    le = LabelEncoder()
+    y_train_enc = pd.Series(le.fit_transform(y_train), name="label")
+
+    # Feature selection (uses encoded labels — MI scores are equivalent)
     selected_features, mi_df = select_features_mutual_info(
-        X_train_all, y_train,
+        X_train_all, y_train_enc,
         feature_percentage=cfg.feature_percentage,
         random_state=cfg.random_state,
     )
@@ -319,11 +325,15 @@ def run_experiment(
     X_test = X_test_all[selected_features]
 
     # GA tuning
-    best_params, best_cv_acc = xgb_genetic_algorithm(X_train, y_train, cfg)
+    best_params, best_cv_acc = xgb_genetic_algorithm(X_train, y_train_enc, cfg)
 
-    # Train final and evaluate
-    model = train_final_pipeline(X_train, y_train, best_params, cfg.random_state)
-    metrics = evaluate_model(model, X_test, y_test, labels=cm_labels)
+    # Train final model
+    model = train_final_pipeline(X_train, y_train_enc, best_params, cfg.random_state)
+
+    # Predict and decode back to original label space before evaluation
+    y_pred_enc = model.predict(X_test)
+    y_pred = pd.Series(le.inverse_transform(y_pred_enc))
+    metrics = evaluate_model(model, X_test, y_test, labels=cm_labels, y_pred_override=y_pred)
 
     # Save artifacts
     mi_df.to_csv(outdir / "mutual_info_ranking.csv", index=False)

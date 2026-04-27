@@ -1,0 +1,1287 @@
+backspace_median
+e->e_s/m
+backspace_mean
+o->o_s/m
+e->e_std
+e->e_rkd_s/m
+o->o_std
+e->e_range
+o->o_range
+o->o_rkd_s/m
+d->d_s/m
+ ->u_rkd_std
+backspace_max
+n->h_s/m
+e->e_rkd_range
+u->j_rkd_range
+a->a_s/m
+ ->u_rkd_range
+ ->u_rkd_s/m
+u->j_rkd_s/m
+e->e_rkd_std
+o->o_rkd_range
+n->h_rkd_s/m
+d->d_std
+o->o_median
+ ->i_rkd_std
+d->d_mean
+u->j_rkd_std
+a->a_std
+ ->i_rkd_range
+o->o_rkd_std
+o->o_mean
+ ->i_rkd_s/m
+u->j_std
+d->d_rkd_s/m
+backspace_range
+d->d_range
+e->t_rkd_std
+e->e_median
+ _s/m
+e->e_mean
+e->n_rkd_max
+a->a_range
+e->u_rkd_std
+ ->o_rkd_std
+a->a_rkd_s/m
+f-> _s/m
+e->u_rkd_max
+s-> _s/m
+n->h_rkd_range
+u->j_s/m
+n->h_range
+ ->u_rkd_max
+n->h_std
+e->u_rkd_range
+a->s_rkd_std
+e->s_rkd_s/m
+e->t_rkd_range
+ ->o_rkd_range
+ ->a_rkd_std
+a->s_rkd_range
+a->a_mean
+d->d_rkd_std
+a->a_rkd_std
+u->j_range
+o->n_rkd_std
+a->s_rkd_s/m
+e->s_rkd_std
+e->j_rkd_std
+p->h_s/m
+e->n_rkd_mean
+e->j_rkd_range
+o->i_rkd_std
+ ->u_rkd_median
+j-> _s/m
+n->h_median
+n-> _rkd_std
+d->d_median
+ ->o_rkd_s/m
+u-> _rkd_range
+a->p_rkd_mean
+e->s_rkd_range
+a->j_rkd_std
+backspace_std
+ ->o_rkd_median
+a->n_rkd_std
+u->y_s/m
+u->j_median
+ ->a_rkd_range
+backspace_s/m
+u->n_rkd_std
+e->t_rkd_max
+e-> _rkd_std
+ ->i_rkd_max
+a->a_rkd_range
+e->n_rkd_std
+e->t_rkd_s/m
+o->n_s/m
+o->n_rkd_range
+d->d_rkd_range
+e-> _rkd_s/m
+o->a_median
+o->j_rkd_range
+e->n_rkd_range
+h->o_s/m
+e-> _rkd_median
+h->o_rkd_s/m
+u->j_mean
+i->n_s/m
+e->u_rkd_mean
+f-> _range
+u->y_std
+n->o_rkd_range
+n->j_rkd_range
+e->j_rkd_max
+n->h_rkd_std
+a-> _rkd_std
+e->u_rkd_median
+ ->a_rkd_s/m
+j-> _range
+e->u_rkd_s/m
+e->t_rkd_mean
+e->n_rkd_median
+c->o_mean
+h->o_range
+o->n_rkd_s/m
+a->p_rkd_median
+e->f_rkd_range
+o->j_rkd_s/m
+h->o_std
+n-> _rkd_range
+i->j_s/m
+l->o_median
+v->a_median
+j_s/m
+h->u_s/m
+u->j_rkd_median
+e->m_rkd_median
+j-> _rkd_std
+e-> _rkd_range
+u->n_rkd_s/m
+a->j_rkd_range
+ ->o_rkd_mean
+p->h_range
+a->t_rkd_std
+j-> _rkd_range
+f-> _rkd_std
+ ->u_rkd_mean
+d->o_rkd_range
+h->o_rkd_range
+s-> _std
+e-> _rkd_mean
+ ->a_rkd_median
+j-> _std
+w->s_rkd_std
+ ->i_rkd_median
+o->i_rkd_range
+s-> _range
+u->n_rkd_range
+n->h_mean
+h->j_s/m
+u->j_rkd_max
+t->o_rkd_std
+w->s_rkd_s/m
+i->n_rkd_s/m
+n_s/m
+a->p_rkd_max
+o->o_rkd_mean
+a->s_rkd_mean
+n->h_rkd_mean
+n->o_median
+p->h_std
+o->a_std
+ ->i_rkd_mean
+o->f_rkd_s/m
+u-> _rkd_s/m
+n-> _s/m
+i->n_rkd_std
+e->x_s/m
+g-> _s/m
+o->j_rkd_std
+g-> _range
+u->n_range
+u->y_range
+r_s/m
+o->i_rkd_s/m
+a->p_rkd_range
+a->n_mean
+o->i_s/m
+a->a_median
+g_s/m
+t->o_rkd_range
+a-> _rkd_range
+g-> _std
+h-> _s/m
+n-> _rkd_s/m
+c->s_rkd_s/m
+a->p_rkd_std
+l->o_mean
+a->n_median
+e->j_rkd_s/m
+p->h_mean
+t->a_rkd_s/m
+h->i_rkd_s/m
+g->a_rkd_s/m
+ ->o_rkd_max
+d->d_rkd_median
+i->e_median
+n->j_s/m
+a->n_rkd_range
+e->e_rkd_mean
+t->r_s/m
+e->t_rkd_median
+u->n_s/m
+u->j_rkd_mean
+e->j_rkd_mean
+e->r_rkd_s/m
+p->h_median
+s->t_rkd_s/m
+i->n_mean
+e->r_rkd_std
+e->e_rkd_median
+a->n_rkd_max
+w->s_rkd_range
+k->i_rkd_s/m
+x->a_mean
+d->d_rkd_mean
+i->n_median
+o-> _rkd_range
+d->o_rkd_std
+d->o_rkd_max
+ _mean
+n-> _std
+o-> _rkd_s/m
+f-> _std
+n->o_rkd_s/m
+e->f_rkd_s/m
+l->o_rkd_mean
+c->h_median
+a-> _rkd_s/m
+u-> _rkd_max
+s->t_rkd_std
+e->p_rkd_max
+e->m_rkd_max
+n-> _rkd_max
+a->j_rkd_s/m
+e->n_rkd_s/m
+i->n_rkd_range
+l->o_std
+a->a_rkd_median
+f_median
+o->a_range
+e->p_rkd_range
+o-> _rkd_std
+d->e_rkd_s/m
+h->i_s/m
+e->m_rkd_mean
+o->f_rkd_std
+h->a_mean
+n->f_rkd_range
+p->h_rkd_s/m
+ -> _std
+e->m_rkd_std
+o->n_std
+o->a_s/m
+r->o_rkd_s/m
+e->s_rkd_mean
+c_s/m
+n-> _range
+ ->h_rkd_range
+ ->a_rkd_mean
+ ->a_rkd_max
+t_mean
+s->t_rkd_range
+t->a_rkd_range
+u_s/m
+ _median
+d->u_rkd_std
+p->j_s/m
+e-> _rkd_max
+m->o_range
+ ->p_rkd_std
+i->u_rkd_range
+f_s/m
+h->e_rkd_range
+a-> _s/m
+g->a_rkd_range
+e->x_range
+t->o_rkd_s/m
+u-> _rkd_std
+t_s/m
+x_s/m
+o->f_rkd_range
+l->o_rkd_std
+j_median
+s->t_rkd_mean
+a->j_rkd_mean
+x->a_s/m
+o_median
+v->o_s/m
+w_median
+d->i_rkd_median
+i->a_median
+r-> _s/m
+h->e_rkd_s/m
+k->i_s/m
+c->s_max
+n->j_rkd_s/m
+n->a_rkd_max
+e->r_rkd_range
+h->j_rkd_std
+t_median
+p->s_rkd_max
+t->u_rkd_range
+r->e_std
+n->g_mean
+w->j_rkd_range
+c->h_s/m
+e->p_rkd_s/m
+i->u_rkd_median
+h->s_rkd_median
+a->f_rkd_s/m
+ ->m_rkd_range
+i->a_mean
+i-> _rkd_range
+g->i_s/m
+x->a_median
+h_mean
+g->a_rkd_std
+u->w_rkd_range
+n->a_rkd_range
+n->g_median
+n->e_rkd_max
+h->a_std
+o->i_median
+e-> _s/m
+ ->b_rkd_std
+h-> _rkd_std
+t->h_s/m
+r_median
+t->u_rkd_std
+ ->t_s/m
+v->a_s/m
+f-> _rkd_range
+d->u_s/m
+ ->m_rkd_s/m
+d->u_rkd_max
+ -> _max
+n->j_rkd_median
+n->j_std
+a->p_rkd_s/m
+t->o_rkd_mean
+o-> _range
+p->j_mean
+a->t_rkd_mean
+c->j_s/m
+o->f_s/m
+c->u_max
+o-> _rkd_max
+h->a_s/m
+e->f_rkd_median
+i->n_range
+o-> _rkd_mean
+o->s_rkd_std
+w-> _rkd_std
+s->n_rkd_range
+i->s_rkd_max
+a_median
+h->j_range
+a->t_rkd_range
+n->w_rkd_s/m
+w->s_median
+h->o_rkd_std
+e->s_rkd_max
+u->e_rkd_median
+y->s_rkd_median
+o->o_rkd_median
+n->e_max
+i_s/m
+e->s_rkd_median
+t->o_rkd_max
+o->j_rkd_max
+c->u_median
+t->r_median
+w->j_median
+m->o_rkd_range
+i->a_range
+e->t_s/m
+e->m_rkd_s/m
+o->n_range
+x->a_rkd_range
+h->s_rkd_max
+e->s_s/m
+o_s/m
+d->o_rkd_median
+d->o_rkd_s/m
+i->n_std
+n->j_rkd_std
+s_mean
+a-> _max
+g->r_max
+s->t_rkd_max
+ ->b_rkd_mean
+u->y_rkd_s/m
+o->r_s/m
+h->u_rkd_s/m
+i-> _s/m
+c->s_rkd_std
+l->o_s/m
+a->m_s/m
+t->o_median
+p->h_rkd_range
+ ->p_rkd_range
+m_median
+u->n_std
+e->f_rkd_std
+d->i_rkd_max
+f-> _rkd_max
+n->h_rkd_median
+h->a_median
+a->n_rkd_mean
+d->o_rkd_mean
+ ->p_range
+u->w_rkd_max
+ ->r_rkd_std
+p->h_rkd_std
+x-> _rkd_std
+d->e_s/m
+n->s_rkd_max
+c-> _std
+k->h_mean
+t-> _rkd_s/m
+o->c_mean
+o->r_rkd_std
+w->s_s/m
+m-> _rkd_s/m
+a->p_median
+o->f_rkd_max
+a->s_rkd_max
+e->j_rkd_median
+o->t_rkd_s/m
+o->j_rkd_median
+r-> _std
+t->s_s/m
+s-> _rkd_std
+t->a_s/m
+i-> _range
+n->a_range
+ ->u_mean
+ ->p_rkd_s/m
+h->i_rkd_std
+j-> _rkd_max
+a->o_median
+s->e_median
+i-> _rkd_s/m
+r->u_max
+h->i_rkd_range
+n->w_rkd_max
+ -> _rkd_range
+j->t_rkd_range
+t->h_median
+w->r_median
+n->o_s/m
+u->y_median
+h-> _rkd_range
+e->p_rkd_mean
+a->j_rkd_median
+n->s_rkd_median
+n->f_rkd_mean
+g->i_range
+ _std
+ ->m_s/m
+ ->p_rkd_mean
+p->j_rkd_mean
+h->e_rkd_std
+g->a_rkd_median
+v->e_rkd_max
+e->f_rkd_mean
+d->u_rkd_range
+t->h_mean
+o->c_median
+h_median
+a-> _rkd_max
+g->w_rkd_median
+m->o_s/m
+b_median
+a->i_mean
+ ->p_std
+u->r_max
+k->i_rkd_std
+w->r_mean
+t->a_range
+o->n_rkd_median
+u->y_rkd_std
+j-> _max
+t->a_rkd_std
+h->j_std
+i->r_s/m
+ ->m_std
+s_median
+u->r_mean
+h->o_rkd_mean
+ ->g_mean
+n->o_mean
+ ->q_range
+h->u_rkd_mean
+e->f_rkd_max
+c->u_mean
+h->u_std
+o->n_rkd_mean
+o->a_max
+o->c_s/m
+t->r_rkd_s/m
+c->h_mean
+w->s_std
+w->r_s/m
+x-> _rkd_max
+a-> _rkd_mean
+y-> _s/m
+v_median
+u->w_mean
+a->t_rkd_s/m
+h-> _max
+r->o_rkd_range
+p_s/m
+e_median
+k->h_rkd_range
+a_mean
+w->f_rkd_range
+d->i_rkd_std
+i->u_s/m
+d->u_std
+q->u_s/m
+d->e_rkd_std
+a->n_max
+c_mean
+a->s_rkd_median
+a->f_rkd_std
+n_mean
+v->a_mean
+y->s_max
+ ->u_range
+p->s_rkd_range
+d->i_mean
+p->j_rkd_median
+ ->l_median
+d->i_rkd_mean
+a->x_s/m
+g->o_s/m
+n->f_rkd_std
+u->s_rkd_max
+d->i_median
+a->a_rkd_mean
+d->u_range
+a->p_max
+f_range
+r->u_rkd_std
+ ->h_s/m
+ ->u_median
+ ->i_s/m
+ ->t_rkd_range
+r->e_rkd_std
+a->o_rkd_max
+n->w_rkd_range
+g->i_mean
+e->r_rkd_max
+u->y_mean
+w->g_rkd_s/m
+d->e_range
+s->t_rkd_median
+r->e_rkd_s/m
+y->s_median
+ ->u_max
+k->h_std
+y->s_mean
+o->t_rkd_std
+o-> _std
+ ->h_rkd_s/m
+ ->h_median
+w-> _rkd_mean
+a->t_rkd_max
+g-> _rkd_s/m
+i->u_rkd_s/m
+a->o_rkd_std
+h->e_rkd_max
+c->h_std
+c_median
+ ->p_s/m
+h->f_mean
+r-> _rkd_std
+i_mean
+d->a_std
+p->h_max
+d->i_max
+n->a_rkd_median
+ ->s_rkd_max
+e_mean
+ -> _s/m
+e->r_s/m
+h->i_range
+ ->m_rkd_std
+d->o_mean
+c-> _rkd_s/m
+i->j_std
+s->c_rkd_mean
+r->e_rkd_range
+i->c_mean
+ ->g_rkd_range
+i->s_rkd_s/m
+ ->k_rkd_range
+c->s_rkd_mean
+s->e_rkd_s/m
+t->i_max
+r->o_s/m
+t-> _std
+u->s_rkd_range
+t->u_median
+m->o_median
+i->c_s/m
+ ->d_rkd_std
+a->p_mean
+t->o_mean
+j->t_rkd_std
+i->s_rkd_std
+s-> _rkd_range
+g_mean
+l->o_rkd_median
+c-> _rkd_std
+c->o_s/m
+h->s_rkd_std
+t->u_rkd_s/m
+p_range
+w->f_rkd_median
+ ->s_median
+v->e_rkd_s/m
+a->t_rkd_median
+e->m_s/m
+c->o_range
+n->f_rkd_max
+a->j_rkd_max
+ ->u_std
+n->j_mean
+o->s_mean
+r->a_mean
+u->r_s/m
+n->a_rkd_mean
+q_median
+h-> _rkd_s/m
+ ->c_rkd_max
+x->a_max
+i->a_s/m
+n->o_range
+n->o_rkd_std
+k_s/m
+h->a_range
+w-> _rkd_max
+t->r_range
+h->s_rkd_mean
+m->o_std
+p->j_rkd_s/m
+w->j_mean
+i-> _std
+s->n_rkd_max
+a->s_median
+w-> _rkd_range
+n->s_rkd_range
+s->c_median
+p-> _rkd_range
+t-> _rkd_median
+e->x_std
+o->i_rkd_median
+o->s_rkd_max
+l->o_range
+e->p_s/m
+ -> _rkd_median
+ ->q_mean
+e->r_median
+a->n_s/m
+ ->n_rkd_mean
+o->i_std
+g->a_rkd_mean
+t-> _rkd_std
+j-> _rkd_s/m
+i->e_mean
+o->a_rkd_std
+u->w_rkd_std
+p-> _rkd_max
+ ->s_max
+e_range
+p->h_rkd_mean
+ -> _range
+c->h_rkd_std
+d->e_median
+w->g_rkd_range
+e->x_rkd_range
+a->y_rkd_max
+a->u_rkd_s/m
+h->a_rkd_range
+d->o_std
+o->f_rkd_median
+t->i_rkd_range
+w->c_s/m
+ ->b_range
+f-> _max
+ ->p_median
+s->c_rkd_max
+t->r_rkd_range
+r->i_rkd_max
+t->r_rkd_mean
+a->x_max
+g->h_s/m
+u->o_rkd_s/m
+m-> _rkd_range
+g->o_median
+ ->t_mean
+a->y_mean
+u->j_max
+ ->t_rkd_max
+ ->q_rkd_max
+s->n_rkd_std
+ ->n_rkd_std
+m-> _mean
+a-> _rkd_median
+w->j_rkd_std
+a_s/m
+y-> _max
+l->u_median
+w_s/m
+p->j_rkd_range
+b_mean
+t->r_mean
+o->f_rkd_mean
+h->j_rkd_range
+l->o_rkd_max
+ ->u_s/m
+o->j_rkd_mean
+x_median
+f-> _rkd_median
+r->u_range
+p->s_rkd_median
+d->a_s/m
+a->c_rkd_max
+t->s_rkd_mean
+ ->k_rkd_s/m
+y_median
+t-> _rkd_range
+o->s_rkd_range
+i_median
+ -> _rkd_max
+v->e_rkd_range
+j->g_rkd_median
+x-> _rkd_median
+h->j_rkd_mean
+ ->n_rkd_range
+o->t_rkd_median
+g->w_rkd_std
+t->u_range
+s->i_rkd_range
+i-> _rkd_max
+o->r_rkd_s/m
+u->o_std
+o->c_std
+u_median
+u-> _rkd_mean
+m-> _std
+w->r_rkd_range
+u->a_median
+v->a_range
+s->c_rkd_median
+ ->b_rkd_max
+o->i_rkd_mean
+a->j_s/m
+p->s_rkd_mean
+r->a_median
+ ->m_range
+v->a_rkd_s/m
+c->s_rkd_range
+ ->k_mean
+p->j_std
+c->s_rkd_median
+g->h_median
+ ->b_s/m
+h->e_rkd_median
+k->h_median
+v->o_rkd_s/m
+a->t_range
+n->e_rkd_mean
+y-> _rkd_max
+ ->l_rkd_range
+r_mean
+o->a_rkd_mean
+w_mean
+j->t_std
+c->j_rkd_median
+a->y_rkd_range
+n->w_rkd_mean
+h->s_rkd_s/m
+r->e_mean
+t->h_range
+h_s/m
+ ->x_rkd_mean
+i->n_rkd_mean
+g->a_range
+ ->h_mean
+ ->a_std
+i->j_rkd_mean
+h->f_rkd_mean
+a->o_s/m
+i->s_rkd_range
+l->u_rkd_s/m
+u->n_mean
+m->o_mean
+c->u_s/m
+r->e_median
+ ->l_rkd_mean
+p-> _median
+g->i_std
+u->a_mean
+g->a_s/m
+ ->h_range
+j->c_rkd_max
+g->x_s/m
+k_std
+v->e_s/m
+g_median
+u->f_rkd_s/m
+h-> _range
+a->u_range
+w->f_rkd_mean
+t->u_s/m
+u->n_median
+u-> _rkd_median
+s->n_rkd_s/m
+h->u_rkd_std
+m-> _median
+o->w_rkd_max
+h->s_rkd_range
+j->t_rkd_max
+e->p_max
+u->o_s/m
+a->m_median
+u->r_rkd_range
+o->s_rkd_mean
+k->h_s/m
+m_s/m
+y->s_std
+ ->v_rkd_max
+x->a_range
+ ->a_s/m
+q->u_range
+o->a_rkd_max
+e->p_rkd_median
+a->u_s/m
+e->x_mean
+n->s_max
+m_mean
+n->e_rkd_std
+p_median
+h-> _std
+u->c_rkd_s/m
+a->y_std
+n->j_rkd_mean
+y->e_range
+g->o_mean
+e->c_rkd_s/m
+n->e_std
+w->r_range
+u->c_rkd_std
+a->m_rkd_median
+c->s_s/m
+h->o_rkd_median
+b->i_rkd_range
+s->e_s/m
+w->s_rkd_max
+a->y_max
+a->w_s/m
+d->e_rkd_range
+h-> _rkd_max
+o->n_mean
+w->g_rkd_mean
+n-> _max
+w->i_s/m
+u->c_s/m
+h->e_median
+ -> _rkd_s/m
+t->u_mean
+v->a_std
+t->s_rkd_std
+n->a_rkd_std
+e->m_std
+u->e_rkd_s/m
+a->f_s/m
+f-> _rkd_s/m
+a->w_rkd_max
+i->a_std
+a->u_max
+i-> _rkd_std
+t->i_mean
+ ->s_std
+w->f_rkd_std
+ ->q_median
+b->i_s/m
+h-> _rkd_median
+g->r_mean
+n_median
+h->j_rkd_max
+c->o_max
+p-> _rkd_std
+r-> _rkd_range
+l->a_rkd_std
+n->g_std
+p->j_median
+h->o_mean
+y->e_std
+n->s_rkd_s/m
+c->u_std
+shift_mean
+d->a_rkd_std
+c->h_rkd_mean
+u->o_rkd_std
+a->x_rkd_s/m
+r->e_max
+ -> _median
+g->j_rkd_s/m
+l->o_rkd_s/m
+ ->p_rkd_median
+y-> _rkd_range
+ ->n_median
+w->s_mean
+e->x_rkd_s/m
+ ->v_max
+o-> _rkd_median
+c->a_rkd_std
+i->u_rkd_std
+n->g_s/m
+ ->t_std
+w->s_range
+h->u_range
+o->s_range
+o->a_rkd_s/m
+a->r_rkd_range
+s->e_rkd_range
+i->c_rkd_range
+g-> _rkd_range
+ ->t_median
+s->e_rkd_max
+w-> _rkd_s/m
+u->r_rkd_mean
+i->j_mean
+e->n_std
+j->t_rkd_median
+ ->b_std
+n->j_median
+i->c_rkd_max
+e->x_rkd_mean
+o->a_mean
+a->r_rkd_s/m
+c->a_std
+i->f_rkd_median
+c_range
+n_range
+y-> _rkd_std
+j_mean
+j->t_rkd_mean
+d->i_rkd_range
+ ->t_rkd_s/m
+g-> _rkd_max
+e->c_rkd_range
+a->o_rkd_median
+a->m_std
+p_std
+n->x_rkd_std
+h_std
+g->u_s/m
+u->w_s/m
+ ->c_rkd_s/m
+b->e_rkd_std
+g->x_median
+a->f_median
+ ->g_rkd_s/m
+ ->x_median
+ ->d_max
+b->i_rkd_std
+e->x_rkd_median
+i->s_rkd_mean
+n->f_s/m
+e->r_rkd_median
+m->o_rkd_s/m
+h->e_rkd_mean
+i->f_mean
+i->u_range
+ ->q_rkd_range
+w->c_max
+g->f_rkd_median
+r->a_rkd_s/m
+p-> _rkd_median
+o->i_rkd_max
+w->g_rkd_std
+a->f_mean
+s->n_rkd_mean
+o->t_rkd_mean
+ ->p_max
+c->h_range
+u->e_rkd_max
+ ->r_rkd_s/m
+o->d_s/m
+ ->t_range
+ ->g_range
+s->e_range
+u->s_rkd_std
+l->u_max
+y->e_s/m
+y->e_rkd_std
+n-> _rkd_mean
+y-> _range
+i->e_s/m
+e->r_std
+d->u_rkd_mean
+o->w_rkd_std
+ ->c_median
+u->f_s/m
+n->s_s/m
+w->c_rkd_range
+n->f_rkd_median
+u->c_std
+o->d_median
+j->c_s/m
+r->o_rkd_std
+m-> _range
+a->t_std
+i->r_rkd_range
+ ->b_rkd_range
+t->a_mean
+o->j_s/m
+h->i_std
+h->j_rkd_median
+u->o_rkd_mean
+b->a_s/m
+a->n_rkd_median
+u->s_rkd_s/m
+w->j_rkd_s/m
+m->r_s/m
+a->p_range
+i->j_rkd_median
+a->x_median
+s-> _rkd_max
+n->e_rkd_median
+d->u_mean
+d->a_rkd_range
+s_std
+u->a_s/m
+g->i_median
+k->i_median
+x-> _rkd_s/m
+h->u_median
+q_range
+n->a_max
+n->o_rkd_median
+z_std
+c->o_rkd_std
+r->i_s/m
+e->s_mean
+a->y_rkd_mean
+b->i_std
+y->e_median
+a->i_rkd_mean
+y_max
+x_range
+n->j_max
+e->m_rkd_range
+i->a_max
+g->j_median
+v->i_rkd_mean
+g->f_s/m
+e->p_rkd_std
+r->a_s/m
+q->u_mean
+g->a_rkd_max
+ _max
+v->e_max
+d->e_std
+o-> _max
+a->i_s/m
+k->i_range
+s->a_range
+u->y_max
+o_mean
+i->u_rkd_max
+ ->s_s/m
+s->o_range
+i->w_rkd_median
+c->o_rkd_range
+a->y_rkd_std
+m->o_rkd_std
+a->o_range
+h->f_rkd_std
+u->r_rkd_s/m
+a->y_rkd_s/m
+q->u_std
+g->h_rkd_mean
+w-> _rkd_median
+o->r_rkd_max
+ ->s_rkd_std
+ ->d_rkd_s/m
+ ->q_s/m
+c->j_rkd_std
+r->a_rkd_std
+s_s/m
+a->n_range
+o-> _s/m
+h->e_mean
+u->y_rkd_range
+ ->d_rkd_max
+o->i_mean
+m->i_s/m
+c_std
+u->e_rkd_range
+k->h_range
+ ->t_rkd_mean
+b->e_median
+m->o_max
+e->c_rkd_mean
+a->f_rkd_range
+e->m_max
+c->u_range
+k_mean
+e->m_median
+m->o_rkd_median
+c->o_rkd_mean
+t->s_rkd_median
+h->f_rkd_max
+l->o_max
+r-> _max
+d_std
+n->a_rkd_s/m
+n->s_mean
+g->h_mean
+ ->i_range
+shift_std
+k->i_rkd_range
+g->u_mean
+v->a_rkd_std
+h->a_rkd_std
+y->s_range
+d->i_s/m
+s->c_rkd_std
+o->w_rkd_range
+n->j_range
+a->t_s/m
+a->n_rkd_s/m
+d->a_range
+a->j_mean
+i->u_mean
+q_mean
+w->c_median
+p-> _rkd_s/m
+u->y_rkd_median
+ ->i_mean
+v->o_std
+x-> _s/m
+w->n_median
+ ->o_std
+m->o_rkd_mean
+t->j_max
+o->c_max
+g->f_mean
+g->o_rkd_s/m
+o->f_max
+o->r_max
+n->s_median
+c-> _mean
+m-> _rkd_median
+p->s_rkd_s/m
+a->c_rkd_range
+ ->x_s/m
+i->r_range
+c->o_median
+g-> _median
+t->o_rkd_median
+o->s_median
+s->i_s/m
+e->x_rkd_std
+e->s_std
+n->g_rkd_std
+ ->i_std
+c->a_rkd_max
+m-> _rkd_std
+s->o_rkd_std
+d->o_max
+ ->c_range
+i-> _rkd_median
+u-> _std
+g->h_rkd_median
+e->n_max
+k->h_rkd_s/m
+t->r_std
+v->e_std
+d->a_mean
+q->u_median
+g->a_std
+t->r_rkd_std
+e->j_s/m
+ -> _mean
+g->r_rkd_max
+a->j_max
+s-> _max
+u->e_rkd_std
+e->c_rkd_median
+n->r_rkd_std
+h->j_rkd_s/m
+ ->r_std
+w->s_max
+g->x_rkd_range
+g->w_rkd_s/m
+a->o_std
+n->j_rkd_max
+g_std
+r->u_mean
+ ->o_mean
+v_range
+i_std
+l->u_range
+e->r_mean
+j->g_median
+a-> _range
+o->a_rkd_range
+i->c_rkd_s/m
+u->n_rkd_median
+ ->g_rkd_mean
+o->j_mean
+d->i_range
+ ->g_std
+n->w_rkd_std
+g->j_range
+t->i_rkd_std
+ ->v_rkd_s/m
+x-> _range
+c->a_max
+d_s/m
+a->u_std
+i->f_rkd_mean
+h->f_max
+x-> _max
+w->r_rkd_mean
+c->a_median
+t->o_max
+ ->x_rkd_std
+r-> _rkd_max
+ ->g_median
+h->o_median
+i->w_rkd_max
+o->c_rkd_max
+v->e_rkd_mean
+p->j_rkd_std
+t->a_std
+o->w_median
+g->o_rkd_range
+o->r_rkd_mean
+g_range
+i->n_rkd_median
+u-> _range
+i->c_median
+c->o_rkd_median
+ ->b_median
+ ->d_s/m
+e->s_range
+o->d_rkd_range
+t-> _rkd_mean
+x_mean
+e->c_rkd_max
+t->o_range
+e->t_range
+e->u_median
+j->t_range
+t->a_rkd_median
+o_range
+i_range
+a->o_rkd_range
+b_std
+s->t_range
+ ->p_rkd_max
+a->o_mean
+t->h_rkd_range
+a->i_median
+a->m_range
+o->j_max
+e->t_median
