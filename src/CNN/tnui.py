@@ -9,7 +9,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from collections import Counter
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, roc_curve
 import matplotlib.pyplot as plt
-from sklearn.model_selection import GroupKFold, GroupShuffleSplit
+from sklearn.model_selection import KFold, GroupShuffleSplit
 from sklearn.preprocessing import RobustScaler
 from optuna.samplers import TPESampler
 import random
@@ -19,7 +19,7 @@ import random
 # ---------------------------------------------------------
 VOTING_MODE = 'soft'  
 SCENARIO = 'M5'       
-OPTUNA_TRIALS = 10   
+OPTUNA_TRIALS = 30   
 OPTUNA_EPOCHS = 30
 FINAL_EPOCHS = 100
 HIDDEN_DIM = 128
@@ -236,7 +236,7 @@ def make_windows(filepath, X, Y, ID, FILE_ID, user_id, file_id, win_length, stri
         paired_keys = []
         
         for ev in events:
-            char = ev["code"]
+            char = ev["key"]
             if ev["event"] == "keydown" and char not in pending_presses:
                 pending_presses[char] = ev["timestamp"]
             elif ev["event"] == "keyup" and char in pending_presses:
@@ -244,7 +244,7 @@ def make_windows(filepath, X, Y, ID, FILE_ID, user_id, file_id, win_length, stri
                 r_time = ev["timestamp"]
                 
                 # Assumes your robust modulo get_key_id function is still in memory
-                keycode = get_key_id_from_code(char) 
+                keycode = get_key_id(char) 
                 
                 paired_keys.append({
                     'key': keycode,
@@ -296,7 +296,7 @@ def make_windows(filepath, X, Y, ID, FILE_ID, user_id, file_id, win_length, stri
 # ---------------------------------------------------------
 X, Y, ID, FILE_ID = [], [], [], []
 
-folder_path = "../../dataset/Korean"
+folder_path = "../../dataset/Attack4"
 user_folders = sorted([d for d in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, d))])
 user2id = {user: i for i, user in enumerate(user_folders)}
 
@@ -325,7 +325,8 @@ print(f"Dataset Loaded -> X: {X.shape} | Y: {Y.shape} | ID: {ID.shape} | Files: 
 optuna.logging.set_verbosity(optuna.logging.WARNING) 
 
 n_splits = 3
-gkf = GroupKFold(n_splits=n_splits)
+unique_users = np.unique(ID)
+kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
 
 fold_accuracies = []
 fold_window_accuracies = [] 
@@ -337,10 +338,16 @@ fold_cm_data = []
 allowed_train_classes = SCENARIO_TRAIN_CLASSES[SCENARIO]
 print(f"\nRunning Scenario {SCENARIO}: Automated 3x3 Nested CV Tuning & Testing (WITH HOLD TIME)")
 
-for fold, (train_idx, test_idx) in enumerate(gkf.split(X, Y, groups=ID)):
+for fold, (train_user_idx, test_user_idx) in enumerate(kf.split(unique_users)):
     print(f"\n" + "="*50)
     print(f"FOLD {fold + 1}/{n_splits} - INITIALIZING OPTUNA EXPERIMENT")
     print("="*50)
+    train_users = unique_users[train_user_idx]
+    test_users = unique_users[test_user_idx]
+    
+    # 2. Map those users back to the actual row indices in X
+    train_idx = np.where(np.isin(ID, train_users))[0]
+    test_idx = np.where(np.isin(ID, test_users))[0]
     
     X_train_full = X[train_idx]
     Y_train_full = Y[train_idx]
@@ -352,7 +359,7 @@ for fold, (train_idx, test_idx) in enumerate(gkf.split(X, Y, groups=ID)):
 
         # --- 75/25 USER-INDEPENDENT SPLIT ---
         # n_splits=1 means it only generates one train/val pair instead of looping
-        gss = GroupShuffleSplit(n_splits=1, test_size=0.30, random_state=42)
+        gss = GroupShuffleSplit(n_splits=1, test_size=1/3, random_state=42)
         inner_train_idx, inner_val_idx = next(gss.split(X_train_full, Y_train_full, groups=ID_train_full))
         
         X_sub = X_train_full[inner_train_idx].copy()
@@ -428,7 +435,7 @@ for fold, (train_idx, test_idx) in enumerate(gkf.split(X, Y, groups=ID)):
     study = optuna.create_study(
         study_name=study_name,
         sampler=sampler,
-        storage="sqlite:///koreantypenetuie.db",
+        storage="sqlite:///finaltypenetuie.db",
         load_if_exists=True,
         direction="maximize"
     )
@@ -586,5 +593,5 @@ for i, (true_labs, pred_labs) in enumerate(fold_cm_data):
 plt.tight_layout()
 
 # HEADLESS SAVING: New plot name for the run with Hold Time!
-plt.savefig(f"KoreanTypeNetUIE_{SCENARIO}_Confusion_Matrix_with_up.png", dpi=300, bbox_inches='tight')
+plt.savefig(f"FINALTYPENETUIE_{SCENARIO}_Confusion_Matrix_with_up.png", dpi=300, bbox_inches='tight')
 plt.close()

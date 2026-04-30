@@ -6,10 +6,9 @@ import numpy as np
 import os
 import optuna
 from torch.utils.data import TensorDataset, DataLoader
-from collections import Counter
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, roc_curve
 import matplotlib.pyplot as plt
-from sklearn.model_selection import KFold, GroupShuffleSplit
+from sklearn.model_selection import GroupKFold, GroupShuffleSplit
 from sklearn.preprocessing import RobustScaler
 from optuna.samplers import TPESampler
 import random
@@ -17,15 +16,15 @@ import random
 # ---------------------------------------------------------
 # PARAMETERS
 # ---------------------------------------------------------
+USE_DWELL_TIME = False  # TOGGLE: True to use make_windows_with_up, False for standard
 VOTING_MODE = 'soft'  
-SCENARIO = 'M2'       
-OPTUNA_TRIALS = 0   
-OPTUNA_EPOCHS = 30
+SCENARIO = 'M5'       
+OPTUNA_TRIALS = 0
+OPTUNA_EPOCHS = 30    
 FINAL_EPOCHS = 50
 HIDDEN_DIM = 128
 WIN_LENGTH = 100
 STRIDE = 50
-NUM_CONT_FEATURES = 1
 
 SCENARIO_TRAIN_CLASSES = {
     'M2': [0, 2],          
@@ -35,12 +34,12 @@ SCENARIO_TRAIN_CLASSES = {
     'M6': [0, 1]
 }
 
-# ---------------------------------------------------------
-# DEVICE SETUP & GPU LEASH
-# ---------------------------------------------------------
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
+# --- THE CUSTOM QUESTION GROUPS ---
+QUESTION_GROUPS = [
+    [1,4],
+    [2,5],
+    [3,6],
+]
 def set_seed(seed=42):
     # 1. Set pure Python random seed (used by some data augmentations)
     random.seed(seed)
@@ -96,6 +95,12 @@ class EarlyStoppingCallback:
             
     __call__.experimental_disable_run_after_update = False
 
+
+
+
+# ---------------------------------------------------------
+# 1. UPGRADED MODEL: EARLY FUSION (ONE-HOT)
+# ---------------------------------------------------------
 class TemporalCNN(nn.Module):
     def __init__(self, continuous_dim=1, num_classes=3, hidden_dim=64, dropout_fc=0.3):
         super().__init__()
@@ -108,17 +113,18 @@ class TemporalCNN(nn.Module):
         self.unified_projector = nn.Linear(unified_in_dim, hidden_dim)
         self.embedding = nn.Embedding(5, 4)
         
-        self.conv1 = nn.Conv1d(in_channels=hidden_dim, out_channels=hidden_dim, kernel_size=3, padding="same")
+        self.conv1 = nn.Conv1d(in_channels=hidden_dim, out_channels=hidden_dim, kernel_size=3)
         self.bn1 = nn.BatchNorm1d(hidden_dim)
         self.dropout1 = nn.Dropout1d(0.1)
         
-        self.conv2 = nn.Conv1d(hidden_dim, hidden_dim, kernel_size=3, padding="same", dilation=1)
+        self.conv2 = nn.Conv1d(hidden_dim, hidden_dim, kernel_size=3, dilation=2)
         self.bn2 = nn.BatchNorm1d(hidden_dim)
         self.dropout2 = nn.Dropout1d(0.1)
 
-        self.conv3 = nn.Conv1d(hidden_dim, hidden_dim, kernel_size=3, padding="same", dilation=1)
+        self.conv3 = nn.Conv1d(hidden_dim, hidden_dim, kernel_size=3, dilation=4)
         self.bn3 = nn.BatchNorm1d(hidden_dim)
         self.dropout3 = nn.Dropout1d(0.1)
+
 
         self.pool = nn.AdaptiveMaxPool1d(1) 
         
@@ -150,6 +156,7 @@ class TemporalCNN(nn.Module):
         x_cnn = self.dropout3(x_cnn)
 
 
+
         features = self.pool(x_cnn).squeeze(-1)
         features = F.relu(self.fc1(features))
         features = self.dropout_fc(features)
@@ -157,16 +164,21 @@ class TemporalCNN(nn.Module):
         if return_features: return features
         return self.fc2(features)
 
-# ---------------------------------------------------------
-# 2. DATA GENERATORS (UPGRADED WITH HOLD TIME)
-# ---------------------------------------------------------
+def get_key_id2(key_str):
+    if len(key_str) == 1:
+        if key_str.isalpha(): return ord(key_str.lower()) - ord('a') 
+        elif key_str.isdigit(): return 26 + int(key_str)               
+        elif key_str == ' ': return 36                              
+    elif key_str == 'Backspace': return 37                                 
+    return 38   
+
 def get_key_id(key_str):
     if len(key_str) == 1:
         if key_str.isalpha(): return 0
-        elif key_str.isdigit(): return 3               
-        elif key_str == ' ': return 1                               
-    elif key_str == 'Backspace': return 2                                  
-    return 4     
+        elif key_str.isdigit(): return 3            
+        elif key_str == ' ': return 1                            
+    elif key_str == 'Backspace': return 2                             
+    return 4
 def get_key_id_from_code(keycode_str):
     # Cast to string and force to lowercase immediately
     keycode_str = str(keycode_str).lower()
@@ -188,114 +200,154 @@ def get_key_id_from_code(keycode_str):
         return 2
         
     # Class 4: Everything else (Shift, Enter, punctuation, etc.)
-    return 4                         
-def get_key_id2(key_str):
-    if len(key_str) == 1:
-        if key_str.isalpha(): return ord(key_str.lower()) - ord('a') 
-        elif key_str.isdigit(): return 26 + int(key_str)               
-        elif key_str == ' ': return 36                              
-    elif key_str == 'Backspace': return 37                                 
-    return 38   
-def make_windows(filepath, X, Y, ID, FILE_ID, user_id, file_id, win_length, stride):
+    return 4
+# ---------------------------------------------------------
+# 2. DATA GENERATORS (STANDARD & UPGRADED)
+# ---------------------------------------------------------
+def get_key_id_6class(current_key_str, prev_key_str=""):
+    """
+    Maps a keystroke into exactly 6 macro-categories:
+    0: Normal Character (a-z)
+    1: Digit (0-9)
+    2: Space (' ')
+    3: Backspace ('Backspace')
+    4: Telex Diacritic / Tone
+    5: Everything Else (Shift, Enter, Punctuation, etc.)
+    """
+    ck = str(current_key_str).lower()
+    pk = str(prev_key_str).lower() if prev_key_str else ""
+    
+    is_diacritic = False
+    
+    if len(ck) == 1:
+        if ck in {'a', 'e', 'o', 'd'} and ck == pk:
+            is_diacritic = True
+        elif ck == 'w' and pk in {'a', 'o', 'u'}:
+            is_diacritic = True
+        elif ck in {'s', 'f', 'r', 'x', 'j'} and pk.isalpha():
+            if ck == 'r' and pk == 't':
+                is_diacritic = False
+            else:
+                is_diacritic = True
+
+    if is_diacritic: return 4                      # Class 4: Diacritic
+    if len(ck) == 1:
+        if ck.isalpha(): return 0                  # Class 0: Normal Character
+        elif ck.isdigit(): return 1                # Class 1: Digit
+        elif ck == ' ': return 2                   # Class 2: Space
+    if ck == 'backspace': return 3                 # Class 3: Backspace
+    return 5                                       # Class 5: Everything Else
+
+def make_windows(filepath, X, Y, ID, FILE_ID, Q_ID, user_id, file_id, win_length, stride):
     with open(filepath, "r", encoding="utf8") as f:
         data = json.load(f)
     _keystrokes = data.get("keystrokes", [])
-    
     is_attack = filepath.endswith("attack.json")
-    sessions = {0: [], 1: [], 2: [], 3: [], 4: []}
-    
+
+    grouped_keys = {}
     for k in _keystrokes:
         if k["event"] == "keydown":
-            session_id = k["session"]
+            q_idx_str = k.get("question_index")
+            if not q_idx_str: continue 
+            parts = str(q_idx_str).split('.')
+            if len(parts) != 2: continue
+            
+            q_id, s_id = int(parts[1]), int(parts[0])
+            label = None
             if not is_attack:
-                if session_id == 1: sessions[0].append(k)
-                elif session_id == 2: sessions[1].append(k)
-                elif session_id == 3: sessions[2].append(k)
+                if s_id == 1: label = 0     
+                elif s_id == 2: label = 1   
+                elif s_id == 3: label = 2   
             else:
-                if session_id == 2: sessions[3].append(k)
-                elif session_id == 3: sessions[4].append(k)
+                if s_id == 2: label = 3     
+                elif s_id == 3: label = 4   
 
-    for label, keys in sessions.items():
+            if label is not None:
+                group_key = (label, q_id)
+                if group_key not in grouped_keys: grouped_keys[group_key] = []
+                grouped_keys[group_key].append(k)
+
+    for (label, q_id), keys in grouped_keys.items():
         if len(keys) == 0: continue
         for i in range(1, len(keys) - win_length, stride):
             window = []
             for j in range(i, i + win_length):
-                dt = keys[j]["timestamp"] - keys[j - 1]["timestamp"]
-                dt = np.clip(dt, 1, 5000)
+                dt = np.clip(keys[j]["timestamp"] - keys[j - 1]["timestamp"], 1, 5000)
                 key_id = get_key_id(keys[j]["key"])
                 window.append([np.log(dt), key_id])
+
             X.append(window)
             Y.append(label)
             ID.append(user_id)
             FILE_ID.append(file_id) 
+            Q_ID.append(q_id) 
 
-def make_windows_with_up(filepath, X, Y, ID, FILE_ID, user_id, file_id, win_length, stride):
+
+
+def make_windows_with_up(filepath, X, Y, ID, FILE_ID, Q_ID, user_id, file_id, win_length, stride):
     with open(filepath, "r", encoding="utf8") as f:
         data = json.load(f)
     _keystrokes = data.get("keystrokes", [])
-    
-    # 1. Simplified Pairing (O(N) linear scan for adjacent pairs)
-    processed_keys = []
-    
-    for i in range(len(_keystrokes) - 1):
-        # Look for adjacent down/up pairs
-        if _keystrokes[i]["event"] == "keydown" and _keystrokes[i+1]["event"] == "keyup":
-            # Safety check just in case there is a tiny logging glitch
-            if _keystrokes[i]["key"] == _keystrokes[i+1]["key"]:
-                hold_time = _keystrokes[i+1]["timestamp"] - _keystrokes[i]["timestamp"]
-                processed_keys.append({
-                    "key": _keystrokes[i]["key"],
-                    "timestamp": _keystrokes[i]["timestamp"], 
-                    "holdtime": hold_time,
-                    "session": _keystrokes[i]["session"]
-                })
-                
-    # (Notice we don't even need to sort them anymore because your JSON is already chronological!)
-    
     is_attack = filepath.endswith("attack.json")
-    sessions = {0: [], 1: [], 2: [], 3: [], 4: []}
-    
-    # 2. Group into sessions
-    for pk in processed_keys:
-        session_id = pk["session"]
-        if not is_attack:
-            if session_id == 1: sessions[0].append(pk)
-            elif session_id == 2: sessions[1].append(pk)
-            elif session_id == 3: sessions[2].append(pk)
-        else:
-            if session_id == 2: sessions[3].append(pk)
-            elif session_id == 3: sessions[4].append(pk)
 
-    # 3. Create Windows with BOTH log(dt) and log(holdtime)
-    for label, keys in sessions.items():
+    for i in range(len(_keystrokes) - 1):
+        if _keystrokes[i]["event"] == "keydown":
+            dt_dwell = np.clip(_keystrokes[i+1]["timestamp"] - _keystrokes[i]["timestamp"], 1, 1000)
+            _keystrokes[i]["dwell_time"] = np.log(dt_dwell)
+            
+    grouped_keys = {}
+    for k in _keystrokes:
+        if k["event"] == "keydown":
+            q_idx_str = k.get("question_index")
+            if not q_idx_str: continue 
+            parts = str(q_idx_str).split('.')
+            if len(parts) != 2: continue
+            
+            q_id, s_id = int(parts[1]), int(parts[0])
+            label = None
+            if not is_attack:
+                if s_id == 1: label = 0     
+                elif s_id == 2: label = 1   
+                elif s_id == 3: label = 2   
+            else:
+                if s_id == 2: label = 3     
+                elif s_id == 3: label = 4   
+
+            if label is not None:
+                group_key = (label, q_id)
+                if group_key not in grouped_keys: grouped_keys[group_key] = []
+                grouped_keys[group_key].append(k)
+
+    for (label, q_id), keys in grouped_keys.items():
         if len(keys) == 0: continue
         for i in range(1, len(keys) - win_length, stride):
             window = []
             for j in range(i, i + win_length):
-                dt = keys[j]["timestamp"] - keys[j - 1]["timestamp"]
-                dt = np.clip(dt, 1, 5000)
-                hold = np.clip(keys[j]["holdtime"], 1, 1000) # Prevents log(0)
+                dt = np.clip(keys[j]["timestamp"] - keys[j - 1]["timestamp"], 1, 5000)
                 key_id = get_key_id(keys[j]["key"])
+                dwell_time = keys[j - 1].get("dwell_time", np.log(100))
                 
-                # Append [Flight Time, Hold Time, Categorical ID]
-                window.append([np.log(hold), key_id])
-                
+                window.append([dwell_time, key_id]) 
+
             X.append(window)
             Y.append(label)
             ID.append(user_id)
-            FILE_ID.append(file_id)
+            FILE_ID.append(file_id) 
+            Q_ID.append(q_id)
 
 # ---------------------------------------------------------
 # 3. DATA EXTRACTION
 # ---------------------------------------------------------
-X, Y, ID, FILE_ID = [], [], [], []
+X, Y, ID, FILE_ID, Q_ID = [], [], [], [], []
 
-folder_path = "../../dataset/Attack4"
+folder_path = "../../dataset/Attack4"  # Change this to your dataset path
 user_folders = sorted([d for d in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, d))])
 user2id = {user: i for i, user in enumerate(user_folders)}
 
-print(f"Generating windows with Up-Events (Hold Time)...")
+mode_str = "Upgraded Features (Dwell Time + Flags)" if USE_DWELL_TIME else "Standard Features"
+print(f"Generating windows with {mode_str}...")
 file_counter = 0 
+
 for user_folder in user_folders:
     user_id = user2id[user_folder]
     user_path = os.path.join(folder_path, user_folder)
@@ -303,24 +355,28 @@ for user_folder in user_folders:
         for filename in sorted(files):
             if filename.endswith(".json"):
                 filepath = os.path.join(root, filename)
-                make_windows(filepath, X, Y, ID, FILE_ID, user_id, file_counter, WIN_LENGTH, STRIDE)
+                if USE_DWELL_TIME:
+                    make_windows_with_up(filepath, X, Y, ID, FILE_ID, Q_ID, user_id, file_counter, WIN_LENGTH, STRIDE)
+                else:
+                    make_windows(filepath, X, Y, ID, FILE_ID, Q_ID, user_id, file_counter, WIN_LENGTH, STRIDE)
                 file_counter += 1
 
 X = np.array(X)
 Y = np.array(Y)
 ID = np.array(ID)
 FILE_ID = np.array(FILE_ID) 
+Q_ID = np.array(Q_ID)
 
-print(f"Dataset Loaded -> X: {X.shape} | Y: {Y.shape} | ID: {ID.shape} | Files: {file_counter}")
+NUM_CONTINUOUS_FEATURES = X.shape[2] - 1 
+
+print(f"Dataset Loaded -> X: {X.shape} | Y: {Y.shape} | Continuous Features Detected: {NUM_CONTINUOUS_FEATURES}")
 
 # ---------------------------------------------------------
-# 4. NESTED CROSS-VALIDATION WITH OPTUNA
+# 4. NESTED CROSS-CONTENT OPTUNA EVALUATION LOOP
 # ---------------------------------------------------------
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 optuna.logging.set_verbosity(optuna.logging.WARNING) 
-
-n_splits = 3
-unique_users = np.unique(ID)
-kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+n_splits = len(QUESTION_GROUPS)
 
 fold_accuracies = []
 fold_window_accuracies = [] 
@@ -330,60 +386,62 @@ all_pred_probs = []
 fold_cm_data = []
 
 allowed_train_classes = SCENARIO_TRAIN_CLASSES[SCENARIO]
-print(f"\nRunning Scenario {SCENARIO}: Automated 3x3 Nested CV Tuning & Testing (WITH HOLD TIME)")
+print(f"\nRunning Scenario {SCENARIO}: Automated Nested CV Tuning & Testing (Cross-Question)")
 
-for fold, (train_user_idx, test_user_idx) in enumerate(kf.split(unique_users)):
-    # 1. Figure out which specific users belong in train vs test
-    train_users = unique_users[train_user_idx]
-    test_users = unique_users[test_user_idx]
+for fold in range(n_splits):
+    test_questions = QUESTION_GROUPS[fold]
+    train_questions = [q for i, group in enumerate(QUESTION_GROUPS) if i != fold for q in group]
     
-    # 2. Map those users back to the actual row indices in X
-    train_idx = np.where(np.isin(ID, train_users))[0]
-    test_idx = np.where(np.isin(ID, test_users))[0]
-    
-    X_train_full = X[train_idx]
-    Y_train_full = Y[train_idx]
-    ID_train_full = ID[train_idx]
-    FID_train_full = FILE_ID[train_idx]
+    print(f"\n" + "="*50)
+    print(f"OUTER FOLD {fold + 1}/{n_splits} - INITIALIZING OPTUNA EXPERIMENT")
+    print(f"Train Questions: {train_questions} | Test Questions: {test_questions}")
+    print("="*50)
+
+    train_content_mask = np.isin(Q_ID, train_questions)
+    test_content_mask = np.isin(Q_ID, test_questions)
+
+    # ---------------------------------------------------------
+    # INNER LOOP: OPTUNA TUNING (FAST 75/25 SPLIT)
+    # ---------------------------------------------------------
+    X_train_full = X[train_content_mask].copy()
+    Y_train_full = Y[train_content_mask]
+    FID_train_full = FILE_ID[train_content_mask]
+    QID_train_full = Q_ID[train_content_mask]
     
     def objective(trial):
         lr = trial.suggest_float('lr', 1e-3, 2e-3, log=True)
 
-        # --- 75/25 USER-INDEPENDENT SPLIT ---
-        # n_splits=1 means it only generates one train/val pair instead of looping
-        gss = GroupShuffleSplit(n_splits=1, test_size=1/3, random_state=42)
-        inner_train_idx, inner_val_idx = next(gss.split(X_train_full, Y_train_full, groups=ID_train_full))
         
-        X_sub = X_train_full[inner_train_idx].copy()
-        Y_sub = Y_train_full[inner_train_idx]
-        X_val = X_train_full[inner_val_idx].copy()
-        Y_val = Y_train_full[inner_val_idx]
-        FID_val = FID_train_full[inner_val_idx]
+        gss = GroupShuffleSplit(n_splits=1, test_size=0.25, random_state=42)
+        sub_train_idx, val_idx = next(gss.split(X_train_full, Y_train_full, groups=QID_train_full))
+        
+        X_sub = X_train_full[sub_train_idx].copy()
+        Y_sub = Y_train_full[sub_train_idx]
+        
+        X_val = X_train_full[val_idx].copy()
+        Y_val = Y_train_full[val_idx]
+        FID_val = FID_train_full[val_idx]
         
         train_mask = np.isin(Y_sub, allowed_train_classes)
         X_sub = X_sub[train_mask]
         Y_sub = Y_sub[train_mask]
         
-        # --- UPGRADED SCALER: Scales both log(dt) and log(hold) without leakage ---
         scaler = RobustScaler()
-        X_sub_cont = X_sub[:, :, :NUM_CONT_FEATURES].reshape(-1, NUM_CONT_FEATURES)
-        X_sub_cont_scaled = scaler.fit_transform(X_sub_cont)
-        X_sub[:, :, :NUM_CONT_FEATURES] = X_sub_cont_scaled.reshape(X_sub.shape[0], X_sub.shape[1], NUM_CONT_FEATURES)
+        train_cont = X_sub[:, :, :NUM_CONTINUOUS_FEATURES].reshape(-1, NUM_CONTINUOUS_FEATURES)
+        val_cont = X_val[:, :, :NUM_CONTINUOUS_FEATURES].reshape(-1, NUM_CONTINUOUS_FEATURES)
         
-        X_val_cont = X_val[:, :, :NUM_CONT_FEATURES].reshape(-1, NUM_CONT_FEATURES)
-        X_val_cont_scaled = scaler.transform(X_val_cont)
-        X_val[:, :, :NUM_CONT_FEATURES] = X_val_cont_scaled.reshape(X_val.shape[0], X_val.shape[1], NUM_CONT_FEATURES)
+        X_sub[:, :, :NUM_CONTINUOUS_FEATURES] = scaler.fit_transform(train_cont).reshape(X_sub.shape[0], X_sub.shape[1], NUM_CONTINUOUS_FEATURES)
+        X_val[:, :, :NUM_CONTINUOUS_FEATURES] = scaler.transform(val_cont).reshape(X_val.shape[0], X_val.shape[1], NUM_CONTINUOUS_FEATURES)
         
         train_ds = TensorDataset(torch.tensor(X_sub, dtype=torch.float32), torch.tensor(Y_sub, dtype=torch.long))
         val_ds = TensorDataset(torch.tensor(X_val, dtype=torch.float32), torch.tensor(Y_val, dtype=torch.long))
         g = torch.Generator()
         g.manual_seed(42)
-
         t_loader = DataLoader(train_ds, batch_size=128, shuffle=True, num_workers=0, pin_memory=True, generator=g)
         v_loader = DataLoader(val_ds, batch_size=128, shuffle=False, num_workers=0, pin_memory=True)
         
         model = TemporalCNN(
-            continuous_dim=NUM_CONT_FEATURES, num_classes=5, hidden_dim=HIDDEN_DIM
+            continuous_dim=NUM_CONTINUOUS_FEATURES, num_classes=5, hidden_dim=HIDDEN_DIM
         ).to(device)
         
         optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
@@ -396,11 +454,10 @@ for fold, (train_user_idx, test_user_idx) in enumerate(kf.split(unique_users)):
                 xb, yb = xb.to(device), yb.to(device)
                 optimizer.zero_grad()
                 loss = criterion(model(xb), yb)
-                    
                 loss.backward()
-                optimizer.step()
+                optimizer.step()  
             scheduler.step()
-
+                
         model.eval()
         session_results = {}
         current_idx = 0
@@ -421,51 +478,45 @@ for fold, (train_user_idx, test_user_idx) in enumerate(kf.split(unique_users)):
             fold_preds.append(np.argmax(np.mean(vals_list, axis=0)))
             fold_labels.append(true_lab)
             
+        inner_val_acc = np.mean(np.array(fold_preds) == np.array(fold_labels))
+        return inner_val_acc
 
-        return np.mean(np.array(fold_preds) == np.array(fold_labels))
-
-    # --- NEW DB NAME FOR WITH_UP RUNS ---
     sampler = TPESampler(seed=42)
-    study_name = f"scenario_M5_fold_{fold + 1}"
-    study = optuna.create_study(
-        study_name=study_name,
-        sampler=sampler,
-        storage="sqlite:///finaluiecnn.db",
-        load_if_exists=True,
-        direction="maximize"
-    )
+    study_name = f"context_scenario_M5_fold_{fold + 1}"
+    study = optuna.create_study(direction="maximize",study_name=study_name, sampler=sampler, storage="sqlite:///unifiedprojector.db", load_if_exists=True)
     study.optimize(objective, n_trials=OPTUNA_TRIALS,
                    callbacks=[
             EarlyStoppingCallback(patience=35),
             PeriodicLoggingCallback(print_every=5, total_trials=OPTUNA_TRIALS)
         ])
     best_params = study.best_params
-    print(f"Optuna Winning Params for Fold {fold + 1}: {best_params} (Val Acc: {study.best_value:.4f})")
+    
+    print(f"Optuna Winning Params for Outer Fold {fold + 1}:")
+    print(json.dumps(best_params, indent=4))
+    print(f"(Inner Val Acc: {study.best_value:.4f})")
     
     # ---------------------------------------------------------
     # OUTER LOOP: FINAL TESTING WITH WINNING PARAMS
     # ---------------------------------------------------------
-    print(f"--- FOLD {fold + 1} FINAL TEST RUN ---")
+    print(f"--- OUTER FOLD {fold + 1} FINAL TEST RUN ---")
     
-    X_train_final = X[train_idx].copy()
-    Y_train_final = Y[train_idx]
-    X_test_final = X[test_idx].copy()
-    Y_test_final = Y[test_idx]
-    FID_test = FILE_ID[test_idx]
+    X_train_final = X[train_content_mask].copy()
+    Y_train_final = Y[train_content_mask]
+    X_test_final = X[test_content_mask].copy()
+    Y_test_final = Y[test_content_mask]
+    FID_test = FILE_ID[test_content_mask]
+    QID_test = Q_ID[test_content_mask] # Added for Outer Loop
 
-    train_mask = np.isin(Y_train_final, allowed_train_classes)
-    X_train_final = X_train_final[train_mask]
-    Y_train_final = Y_train_final[train_mask]
+    scenario_train_mask = np.isin(Y_train_final, allowed_train_classes)
+    X_train_final = X_train_final[scenario_train_mask]
+    Y_train_final = Y_train_final[scenario_train_mask]
 
-    # --- UPGRADED SCALER ---
     scaler = RobustScaler()
-    X_train_final_cont = X_train_final[:, :, :NUM_CONT_FEATURES].reshape(-1, NUM_CONT_FEATURES)
-    X_train_final_scaled = scaler.fit_transform(X_train_final_cont)
-    X_train_final[:, :, :NUM_CONT_FEATURES] = X_train_final_scaled.reshape(X_train_final.shape[0], X_train_final.shape[1], NUM_CONT_FEATURES)
+    train_cont = X_train_final[:, :, :NUM_CONTINUOUS_FEATURES].reshape(-1, NUM_CONTINUOUS_FEATURES)
+    test_cont = X_test_final[:, :, :NUM_CONTINUOUS_FEATURES].reshape(-1, NUM_CONTINUOUS_FEATURES)
     
-    X_test_final_cont = X_test_final[:, :, :NUM_CONT_FEATURES].reshape(-1, NUM_CONT_FEATURES)
-    X_test_final_scaled = scaler.transform(X_test_final_cont)
-    X_test_final[:, :, :NUM_CONT_FEATURES] = X_test_final_scaled.reshape(X_test_final.shape[0], X_test_final.shape[1], NUM_CONT_FEATURES)
+    X_train_final[:, :, :NUM_CONTINUOUS_FEATURES] = scaler.fit_transform(train_cont).reshape(X_train_final.shape[0], X_train_final.shape[1], NUM_CONTINUOUS_FEATURES)
+    X_test_final[:, :, :NUM_CONTINUOUS_FEATURES] = scaler.transform(test_cont).reshape(X_test_final.shape[0], X_test_final.shape[1], NUM_CONTINUOUS_FEATURES)
 
     train_ds = TensorDataset(torch.tensor(X_train_final, dtype=torch.float32), torch.tensor(Y_train_final, dtype=torch.long))
     test_ds = TensorDataset(torch.tensor(X_test_final, dtype=torch.float32), torch.tensor(Y_test_final, dtype=torch.long))
@@ -476,15 +527,14 @@ for fold, (train_user_idx, test_user_idx) in enumerate(kf.split(unique_users)):
     train_loader = DataLoader(train_ds, batch_size=128, shuffle=True, num_workers=0, pin_memory=True, generator=g)
     test_loader = DataLoader(test_ds, batch_size=128, shuffle=False, num_workers=0, pin_memory=True)
 
-
     model = TemporalCNN(
-            continuous_dim=NUM_CONT_FEATURES, num_classes=5, hidden_dim=HIDDEN_DIM
+        continuous_dim=NUM_CONTINUOUS_FEATURES, num_classes=5, hidden_dim=HIDDEN_DIM
     ).to(device)
     
     optimizer = torch.optim.AdamW(model.parameters(), lr=best_params['lr'], weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss()
-
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=FINAL_EPOCHS)
+    
 
     for epoch in range(FINAL_EPOCHS):
         model.train()
@@ -493,11 +543,11 @@ for fold, (train_user_idx, test_user_idx) in enumerate(kf.split(unique_users)):
             xb, yb = xb.to(device), yb.to(device)
             optimizer.zero_grad()
             loss = criterion(model(xb), yb)
-                
             loss.backward()
             optimizer.step()
             running_loss += loss.item() * xb.size(0)
         scheduler.step()
+        
         epoch_loss = running_loss / len(train_loader.dataset)
         
         if (epoch + 1) % 20 == 0 or (epoch + 1) == FINAL_EPOCHS:
@@ -505,7 +555,7 @@ for fold, (train_user_idx, test_user_idx) in enumerate(kf.split(unique_users)):
 
     # Final Evaluation
     model.eval()
-    file_results = {}
+    session_results = {}
     current_idx = 0
     fold_win_preds, fold_win_labels = [], []  
     
@@ -520,18 +570,51 @@ for fold, (train_user_idx, test_user_idx) in enumerate(kf.split(unique_users)):
             fold_win_labels.extend(labels)
             
             batch_fids = FID_test[current_idx : current_idx + len(xb)]
+            batch_qids = QID_test[current_idx : current_idx + len(xb)] # Added for Outer Loop
             current_idx += len(xb)
 
             for j in range(len(store_vals)):
-                key = (batch_fids[j], labels[j]) 
-                if key not in file_results: file_results[key] = []
-                file_results[key].append(store_vals[j])
+                # Changed key to include QID
+                key = (batch_fids[j], batch_qids[j], labels[j]) 
+                if key not in session_results: session_results[key] = []
+                session_results[key].append(store_vals[j])
+
+    targets_to_inspect = [0, 1] 
+
+    for target_label in targets_to_inspect:
+        target_key = None
+        
+        # Unpack with 3 variables
+        for (fid, qid, true_lab) in session_results.keys():
+            if true_lab == target_label:
+                target_key = (fid, qid)
+                break
+
+        if target_key is not None:
+            print(f"\n" + "="*75)
+            class_name = "BONAFIDE" if target_label == 0 else "PARAPHRASE ATTACK"
+            print(f"SOFTMAX TIMELINE | File ID: {target_key[0]} | Q_ID: {target_key[1]} | True Label: {class_name} ({target_label})")
+            print("="*75)
+            
+            window_probs = session_results[(target_key[0], target_key[1], target_label)]
+            
+            print(f"{'Win #':<6} | {'Bonafide':<12} | {'Paraph':<12} | {'Transc':<10} | {'Fake P':<10} | {'Fake T':<10}")
+            print("-" * 75)
+            
+            for i, p in enumerate(window_probs):
+                b_star = "*" if np.argmax(p) == 0 else " "
+                p_star = "*" if np.argmax(p) == 1 else " "
+                
+                print(f"W_{i:<4} | {p[0]:.4f} {b_star}   | {p[1]:.4f} {p_star}   | {p[2]:.4f}     | {p[3]:.4f}     | {p[4]:.4f}")
+            
+            print("="*75 + "\n")
 
     fold_win_acc = np.mean(np.array(fold_win_preds) == np.array(fold_win_labels))
     fold_window_accuracies.append(fold_win_acc)
 
     fold_preds, fold_labels = [], []
-    for (fid, true_lab), vals_list in file_results.items():
+    # Unpack with 3 variables
+    for (fid, qid, true_lab), vals_list in session_results.items():
         mean_probs = np.mean(vals_list, axis=0)
         final_prediction = np.argmax(mean_probs)
             
@@ -576,6 +659,23 @@ optimal_threshold = thresholds[eer_index]
 print(f"Global System EER (Bonafide vs All) : {global_eer:.4f} ({global_eer * 100:.2f}%)")
 print(f"Optimal Confidence Threshold        : {optimal_threshold:.4f}\n")
 
+print("-" * 40)
+print("Attack-Specific False Acceptance Rates (FAR) at EER Threshold:")
+print("-" * 40)
+
+class_names = {1: "Paraphrase (P)", 2: "Transcribe (T)", 3: "Fake Paraphrase (F_P)", 4: "Fake Transcribe (F_T)"}
+
+for class_idx, name in class_names.items():
+    attack_mask = (y_true_array == class_idx)
+    if np.sum(attack_mask) == 0: continue 
+        
+    attack_probs = y_probs_bonafide[attack_mask]
+    false_accepts = np.sum(attack_probs >= optimal_threshold)
+    specific_far = false_accepts / len(attack_probs)
+    print(f"{name:<25}: {specific_far:.4f} ({specific_far * 100:.2f}%)")
+
+print("=" * 40 + "\n")
+
 # ---------------------------------------------------------
 # 6. PLOT THREE SEPARATE CONFUSION MATRICES
 # ---------------------------------------------------------
@@ -585,10 +685,7 @@ for i, (true_labs, pred_labs) in enumerate(fold_cm_data):
     cm = confusion_matrix(true_labs, pred_labs, labels=[0, 1, 2, 3, 4])
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["B", "P", "T", "F_P", "F_T"])
     disp.plot(cmap=plt.cm.Purples, ax=axes[i], colorbar=False)
-    axes[i].set_title(f"Fold {i+1} True Test Matrix")
+    axes[i].set_title(f"Outer Fold {i+1} True Test Matrix")
 
 plt.tight_layout()
-
-# HEADLESS SAVING: New plot name for the run with Hold Time!
-plt.savefig(f"FINALCNN_{SCENARIO}_Confusion_Matrix_with_up.png", dpi=300, bbox_inches='tight')
-plt.close()
+plt.show()
