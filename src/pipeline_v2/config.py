@@ -77,7 +77,7 @@ CONTEXT_FOLDS = [
 FEATURE_PERCENTAGE = 50
 SEED               = 42
 CV_SPLITS          = 5
-POPULATION         = 50
+POPULATION         = 10
 GENERATIONS        = 10
 CM_LABELS          = [0, 1, 2, 3, 4]   # fixed for all scenarios (test set has all 5 labels)
 
