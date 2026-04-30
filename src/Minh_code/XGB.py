@@ -57,16 +57,20 @@ class GAConfig:
 class ExperimentConfig:
     feature_percentage: float = 50.0
     random_state: int = 42
+    use_gpu: bool = False
     ga: GAConfig = GAConfig()
 
 
 # Hyperparameter search space (same as yours)
 PARAM_SPACE: Dict[str, List[Any]] = {
-    "max_depth": list(range(3, 11)),
-    "learning_rate": [0.01, 0.05, 0.1, 0.2, 0.3],
-    "n_estimators": list(range(50, 551, 50)),
-    "subsample": [0.6, 0.7, 0.8, 0.9, 1.0],
+    "max_depth":        list(range(3, 8)),
+    "learning_rate":    [0.01, 0.05, 0.1, 0.2, 0.3],
+    "n_estimators":     list(range(50, 351, 50)),
+    "subsample":        [0.6, 0.7, 0.8, 0.9, 1.0],
     "colsample_bytree": [0.6, 0.7, 0.8, 0.9, 1.0],
+    "min_child_weight": [1, 3, 5, 7, 10],
+    "reg_alpha":        [0, 0.1, 0.5, 1.0, 2.0],
+    "reg_lambda":       [1, 2, 5, 10, 20],
 }
 
 
@@ -89,7 +93,7 @@ def load_xy(csv_path: Path):
         raise ValueError(f"{csv_path} missing required column 'label'.")
 
     y = df["label"]
-    drop_cols = [c for c in ["user_id", 'session', 'section', "label", "file", "source"] if c in df.columns]
+    drop_cols = [c for c in ["user_id", 'session', 'section', "label", "file", "source", "question_index", "cognitive_level"] if c in df.columns]
     X = df.drop(columns=drop_cols)
 
     return X, y
@@ -139,7 +143,7 @@ def ensure_deap_creators() -> None:
 
 
 def custom_mutation(individual: creator.Individual, indpb: float):
-    # layout: [max_depth, learning_rate, n_estimators, subsample, colsample_bytree]
+    # layout: [max_depth, lr, n_est, subsample, colsample, min_child_w, reg_alpha, reg_lambda]
     if random.random() < indpb:
         individual[0] = random.choice(PARAM_SPACE["max_depth"])
     if random.random() < indpb:
@@ -150,6 +154,12 @@ def custom_mutation(individual: creator.Individual, indpb: float):
         individual[3] = random.choice(PARAM_SPACE["subsample"])
     if random.random() < indpb:
         individual[4] = random.choice(PARAM_SPACE["colsample_bytree"])
+    if random.random() < indpb:
+        individual[5] = random.choice(PARAM_SPACE["min_child_weight"])
+    if random.random() < indpb:
+        individual[6] = random.choice(PARAM_SPACE["reg_alpha"])
+    if random.random() < indpb:
+        individual[7] = random.choice(PARAM_SPACE["reg_lambda"])
     return (individual,)
 
 
@@ -171,6 +181,8 @@ def xgb_genetic_algorithm(
         random_state=cfg.random_state,
     )
 
+    gpu_kwargs = {"device": "cuda"} if cfg.use_gpu else {}
+
     def evaluate(individual):
         clf = XGBClassifier(
             max_depth=individual[0],
@@ -178,8 +190,12 @@ def xgb_genetic_algorithm(
             n_estimators=individual[2],
             subsample=individual[3],
             colsample_bytree=individual[4],
+            min_child_weight=individual[5],
+            reg_alpha=individual[6],
+            reg_lambda=individual[7],
             eval_metric="mlogloss",
             random_state=cfg.random_state,
+            **gpu_kwargs,
         )
         pipeline = Pipeline(
             [
@@ -193,17 +209,20 @@ def xgb_genetic_algorithm(
             y_train,
             cv=skf,
             scoring="accuracy",
-            n_jobs=ga.n_jobs_cv,
+            n_jobs=1 if cfg.use_gpu else ga.n_jobs_cv,
         )
         return (float(scores.mean()),)
 
     toolbox = base.Toolbox()
 
-    toolbox.register("attr_max_depth", random.choice, PARAM_SPACE["max_depth"])
-    toolbox.register("attr_learning_rate", random.choice, PARAM_SPACE["learning_rate"])
-    toolbox.register("attr_n_estimators", random.choice, PARAM_SPACE["n_estimators"])
-    toolbox.register("attr_subsample", random.choice, PARAM_SPACE["subsample"])
-    toolbox.register("attr_colsample", random.choice, PARAM_SPACE["colsample_bytree"])
+    toolbox.register("attr_max_depth",        random.choice, PARAM_SPACE["max_depth"])
+    toolbox.register("attr_learning_rate",    random.choice, PARAM_SPACE["learning_rate"])
+    toolbox.register("attr_n_estimators",     random.choice, PARAM_SPACE["n_estimators"])
+    toolbox.register("attr_subsample",        random.choice, PARAM_SPACE["subsample"])
+    toolbox.register("attr_colsample",        random.choice, PARAM_SPACE["colsample_bytree"])
+    toolbox.register("attr_min_child_weight", random.choice, PARAM_SPACE["min_child_weight"])
+    toolbox.register("attr_reg_alpha",        random.choice, PARAM_SPACE["reg_alpha"])
+    toolbox.register("attr_reg_lambda",       random.choice, PARAM_SPACE["reg_lambda"])
 
     toolbox.register(
         "individual",
@@ -215,6 +234,9 @@ def xgb_genetic_algorithm(
             toolbox.attr_n_estimators,
             toolbox.attr_subsample,
             toolbox.attr_colsample,
+            toolbox.attr_min_child_weight,
+            toolbox.attr_reg_alpha,
+            toolbox.attr_reg_lambda,
         ),
         n=1,
     )
@@ -241,11 +263,14 @@ def xgb_genetic_algorithm(
 
     best = tools.selBest(result, k=1)[0]
     best_params = {
-        "max_depth": best[0],
-        "learning_rate": best[1],
-        "n_estimators": best[2],
-        "subsample": best[3],
+        "max_depth":        best[0],
+        "learning_rate":    best[1],
+        "n_estimators":     best[2],
+        "subsample":        best[3],
         "colsample_bytree": best[4],
+        "min_child_weight": best[5],
+        "reg_alpha":        best[6],
+        "reg_lambda":       best[7],
     }
     best_cv_acc = float(best.fitness.values[0])
     return best_params, best_cv_acc
@@ -256,7 +281,9 @@ def train_final_pipeline(
     y_train: pd.Series,
     best_params: Dict[str, Any],
     random_state: int,
+    use_gpu: bool = False,
 ) -> Pipeline:
+    gpu_kwargs = {"device": "cuda"} if use_gpu else {}
     pipe = Pipeline(
         [
             ("scaler", MinMaxScaler()),
@@ -264,7 +291,7 @@ def train_final_pipeline(
                 **best_params,
                 eval_metric="mlogloss",
                 random_state=random_state,
-                use_label_encoder=False,
+                **gpu_kwargs,
             )),
         ]
     )
@@ -273,12 +300,11 @@ def train_final_pipeline(
 
 
 def evaluate_model(
-    model: Pipeline,
-    X_test: pd.DataFrame,
     y_test: pd.Series,
+    y_pred: List[int],
     labels: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
-    y_pred = model.predict(X_test)
+    # Đã bỏ model và X_test, dùng trực tiếp y_pred truyền vào
     acc = float(accuracy_score(y_test, y_pred))
     f1 = float(f1_score(y_test, y_pred, average="weighted"))
     cm = confusion_matrix(y_test, y_pred, labels=labels) if labels is not None else confusion_matrix(y_test, y_pred)
@@ -310,8 +336,9 @@ def run_experiment(
     # Remap labels về 0,1,2 liên tục dựa trên train labels
     unique_labels = sorted(y_train.unique())
     label_map = {v: i for i, v in enumerate(unique_labels)}
+    inverse_label_map = {i: v for i, v in enumerate(unique_labels)} 
+    
     y_train = y_train.map(label_map)
-    y_test = y_test.map(label_map)
 
     # Feature selection
     selected_features, mi_df = select_features_mutual_info(
@@ -322,24 +349,31 @@ def run_experiment(
     X_train = X_train_all[selected_features]
     X_test = X_test_all[selected_features]
 
-    # GA tuning
+# GA tuning
     best_params, best_cv_acc = xgb_genetic_algorithm(X_train, y_train, cfg)
 
-    # Train final and evaluate
-    model = train_final_pipeline(X_train, y_train, best_params, cfg.random_state)
-    metrics = evaluate_model(model, X_test, y_test, labels=cm_labels)
+    # 1. Train final model (Chỉ cần gọi 1 lần thôi)
+    model = train_final_pipeline(X_train, y_train, best_params, cfg.random_state, cfg.use_gpu)
+ 
+    # 2. Dự đoán ra nhãn đã map (ví dụ 0, 1, 2)
+    y_pred_mapped = model.predict(X_test) 
+
+    # 3. TRẢ LẠI TÊN CHO EM (map lại về đúng nhãn nguyên bản)
+    y_pred_original = [inverse_label_map[p] for p in y_pred_mapped]
+
+    # 4. Đánh giá bằng nhãn thật (Gọi hàm chuẩn xác)
+    metrics = evaluate_model(y_test=y_test, y_pred=y_pred_original, labels=cm_labels)
 
     # Save artifacts
     mi_df.to_csv(outdir / "mutual_info_ranking.csv", index=False)
     (outdir / "selected_features.txt").write_text("\n".join(selected_features), encoding="utf-8")
     joblib.dump(model, outdir / "model.joblib")
-    # Save predictions với source
-    test_df = pd.read_csv(test_csv)
-    y_pred = model.predict(X_test)
-    test_df_out = test_df[['label', 'source']].copy() if 'source' in test_df.columns else test_df[['label']].copy()
-    test_df_out['predicted'] = y_pred
-    test_df_out.to_csv(outdir / "predictions.csv", index=False)
 
+    # Save predictions với nhãn thật
+    test_df = pd.read_csv(test_csv)
+    test_df_out = test_df[['label', 'source']].copy() if 'source' in test_df.columns else test_df[['label']].copy()
+    test_df_out['predicted'] = y_pred_original
+    test_df_out.to_csv(outdir / "predictions.csv", index=False)
     summary = {
         "train_csv": str(train_csv),
         "test_csv": str(test_csv),
@@ -388,6 +422,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--indpb", type=float, default=0.2, help="Per-gene mutation probability.")
     p.add_argument("--tournsize", type=int, default=3, help="Tournament size.")
     p.add_argument("--n-jobs-cv", type=int, default=-1, help="n_jobs for cross_val_score.")
+    p.add_argument("--gpu", action="store_true", default=False, help="Use GPU (device=cuda) for XGBoost.")
 
     # Optional: fixed label order for confusion matrix
     p.add_argument("--cm-labels", type=int, nargs="*", default=None,
@@ -403,6 +438,7 @@ def main() -> None:
     cfg = ExperimentConfig(
         feature_percentage=args.feature_percentage,
         random_state=args.seed,
+        use_gpu=args.gpu,
         ga=GAConfig(
             population=args.population,
             generations=args.generations,

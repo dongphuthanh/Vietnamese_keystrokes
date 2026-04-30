@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 (''
  '')#!/usr/bin/env python3
 """
@@ -13,7 +13,7 @@ Example:
   python run_mlp_ga.py --train /path/train.csv --test /path/test.csv --outdir ./runs/mlp_exp1
 """
 
-from __future__ import annotations
+
 
 import argparse
 import json
@@ -86,7 +86,7 @@ def load_xy(csv_path: Path) -> Tuple[pd.DataFrame, pd.Series]:
         raise ValueError(f"{csv_path} missing required column 'label'.")
 
     y = df["label"]
-    drop_cols = [c for c in ["user_id", 'session', 'section', "label", "file", "source"] if c in df.columns]
+    drop_cols = [c for c in ["user_id", 'session', 'section', "label", "file", "source", "question_index", "cognitive_level"] if c in df.columns]
     X = df.drop(columns=drop_cols)
 
     if X.shape[1] == 0:
