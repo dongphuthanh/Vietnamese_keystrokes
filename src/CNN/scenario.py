@@ -19,14 +19,15 @@ STRIDE = 50
 
 # --- NEW PARAMETERS ---
 VOTING_MODE = 'soft'  
-SCENARIO = 'M5'       # CHANGE THIS TO 'M2', 'M3', 'M4', or 'M5'
+SCENARIO = 'M3'       # CHANGE THIS TO 'M2', 'M3', 'M4', or 'M5'
 
 # Define what classes the model is allowed to see during training
 SCENARIO_TRAIN_CLASSES = {
     'M2': [0, 2],          # B, T
     'M3': [0, 1, 2],       # B, P, T
     'M4': [0, 1, 2, 4],    # B, P, T, F_T
-    'M5': [0, 1, 2, 3, 4]  # B, P, T, F_P, F_T
+    'M5': [0, 1, 2, 3, 4],  # B, P, T, F_P, F_T
+    'M6': [0,1]
 }
 
 # ---------------------------------------------------------
@@ -106,7 +107,7 @@ print(f"Dataset Loaded -> X: {X.shape} | Y: {Y.shape} | ID: {ID.shape}")
 # 3. TRAINING LOOP WITH SCENARIO FILTERING
 # ---------------------------------------------------------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-n_splits = 5
+n_splits = 3
 gkf = GroupKFold(n_splits=n_splits)
 
 fold_accuracies = []
@@ -145,11 +146,11 @@ for fold, (train_idx, test_idx) in enumerate(gkf.split(X, Y, groups=ID)):
     # Initialize Model with 5 classes statically
     model = TemporalCNN(feature_dim=X.shape[2], num_classes=5).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.0)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
 
     # Training
-    num_epochs = 100 
+    num_epochs = 100
     for epoch in range(num_epochs):
         model.train()
         for xb, yb in train_loader:

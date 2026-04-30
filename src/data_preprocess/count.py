@@ -30,7 +30,7 @@ def count(file_path):
 
 
 
-folder_path = "../../dataset/viet_preprocessed" 
+folder_path = "../../dataset/AttackUnmodified" 
  # thư mục gốc chứa nhiều folder con
 #count("preptest.json")
 # os.walk duyệt tất cả thư mục con

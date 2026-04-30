@@ -2,12 +2,12 @@
 
 MODELS=("SVM" "MLP" "XGB")
 MS=("m2" "m3" "m4" "m5")
-SRC="/home/mtcd001/PycharmProjects/Vietnamese_keystrokes/src"
-RUNS="/home/mtcd001/PycharmProjects/Vietnamese_keystrokes/runs"
+SRC="C:/Users/ADMIN/Documents/Vietnamese_keystrokes/src/Minh code"
+RUNS="C:/Users/ADMIN/Documents/Vietnamese_keystrokes/runs"
 
 for model in "${MODELS[@]}"; do
     for m in "${MS[@]}"; do
-        for fold in 1 2 3 4 5; do
+        for fold in 1 2 3; do
             echo "Running $model $m fold$fold..."
             python "$SRC/$model.py" \
                 --train "$SRC/train_${m}_fold${fold}.csv" \

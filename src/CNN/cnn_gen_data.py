@@ -120,19 +120,19 @@ def make_windows_with_up(filepath,X,Y,ID,id,win_length,stride):
 
 
 class TemporalCNN(nn.Module):
-    def __init__(self, feature_dim, num_classes):
+    def __init__(self, feature_dim, num_classes, hidden_dim = 64):
         super().__init__()
-        self.conv1 = nn.Conv1d(in_channels=feature_dim, out_channels=64, kernel_size=3, padding=1)
-        self.bn1=nn.BatchNorm1d(64)
+        self.conv1 = nn.Conv1d(in_channels=feature_dim, out_channels=hidden_dim, kernel_size=3, padding=1)
+        self.bn1=nn.BatchNorm1d(hidden_dim)
         self.dropout1=nn.Dropout(0.2)
-        self.conv2 = nn.Conv1d(64, 128, kernel_size=3, padding=2, dilation=2)
-        self.bn2=nn.BatchNorm1d(128)
+        self.conv2 = nn.Conv1d(hidden_dim, hidden_dim * 2, kernel_size=3, padding=2, dilation=2)
+        self.bn2=nn.BatchNorm1d(hidden_dim * 2)
         self.dropout2=nn.Dropout(0.2)
-        self.conv3=nn.Conv1d(128,256,kernel_size=3,padding=4, dilation=4)
-        self.bn3=nn.BatchNorm1d(256)
+        self.conv3=nn.Conv1d(hidden_dim * 2, hidden_dim * 4,kernel_size=3,padding=4, dilation=4)
+        self.bn3=nn.BatchNorm1d(hidden_dim * 4)
         self.dropout3=nn.Dropout(0.3)
         self.pool = nn.AdaptiveMaxPool1d(1)
-        self.fc = nn.Linear(256, num_classes)
+        self.fc = nn.Linear(hidden_dim * 4, num_classes)
         
     def forward(self, x,return_features=False):
         # x: (batch, seq_len, feature_dim)

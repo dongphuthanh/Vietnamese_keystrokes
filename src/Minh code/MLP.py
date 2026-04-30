@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 (''
  '')#!/usr/bin/env python3
 """
@@ -13,7 +13,7 @@ Example:
   python run_mlp_ga.py --train /path/train.csv --test /path/test.csv --outdir ./runs/mlp_exp1
 """
 
-from __future__ import annotations
+
 
 import argparse
 import json

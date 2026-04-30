@@ -180,6 +180,8 @@ def xgb_genetic_algorithm(
             colsample_bytree=individual[4],
             eval_metric="mlogloss",
             random_state=cfg.random_state,
+            tree_method="hist",     # <-- Add this
+            device="cuda",
         )
         pipeline = Pipeline(
             [
@@ -265,6 +267,8 @@ def train_final_pipeline(
                 eval_metric="mlogloss",
                 random_state=random_state,
                 use_label_encoder=False,
+                tree_method="hist",  # <-- Add this
+                device="cuda",
             )),
         ]
     )

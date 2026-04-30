@@ -5,10 +5,10 @@ from sklearn.model_selection import KFold
 from sklearn.preprocessing import LabelEncoder
 
 # Load data
-with open('/home/mtcd001/PycharmProjects/Vietnamese_keystrokes/src/full.pkl', 'rb') as f:
+with open('full.pkl', 'rb') as f:
     normal_data = pickle.load(f)
 
-with open('/home/mtcd001/PycharmProjects/Vietnamese_keystrokes/src/attack.pkl', 'rb') as f:
+with open('attack.pkl', 'rb') as f:
     attack_data = pickle.load(f)
 
 df_normal = pd.DataFrame(normal_data)
@@ -30,7 +30,7 @@ df_attack['source'] = 'attack'
 
 # 5-fold split theo user
 all_users = sorted(df_normal['user_id'].unique())
-kf = KFold(n_splits=5, shuffle=True, random_state=42)
+kf = KFold(n_splits=3, shuffle=True, random_state=42)
 
 drop_cols = ['user_id', 'session', 'section', 'file']
 # KHÔNG drop 'source' — giữ lại để phân biệt F_P, F_T vs P, T
@@ -42,7 +42,7 @@ def make_csv(train_df, test_df, name, fold):
     test_df = test_df.drop(columns=[c for c in drop_cols if c in test_df.columns])
     train_df.fillna(0, inplace=True)
     test_df.fillna(0, inplace=True)
-    out = '/home/mtcd001/PycharmProjects/Vietnamese_keystrokes/src'
+    out = './'
     train_df.to_csv(f'{out}/train_{name}_fold{fold}.csv', index=False)
     test_df.to_csv(f'{out}/test_{name}_fold{fold}.csv', index=False)
     print(f'  {name} fold{fold} - Train: {len(train_df)} rows {train_df["label"].value_counts().to_dict()}, Test: {len(test_df)} rows {test_df["label"].value_counts().to_dict()}')
