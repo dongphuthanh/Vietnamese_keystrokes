@@ -304,6 +304,7 @@ def run_experiment(
     outdir: Path,
     cfg: ExperimentConfig,
     cm_labels: Optional[List[int]] = None,
+    best_params_override: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     ensure_outdir(outdir)
 
@@ -325,8 +326,13 @@ def run_experiment(
     X_train = X_train_all[selected_features]
     X_test = X_test_all[selected_features]
 
-    # GA tuning
-    best_params, best_cv_acc = xgb_genetic_algorithm(X_train, y_train_enc, cfg)
+    # GA tuning — skip if params transferred from M5
+    if best_params_override is not None:
+        best_params = best_params_override
+        best_cv_acc = None
+        print(f"  [transfer] Using hyperparameters from M5: {best_params}")
+    else:
+        best_params, best_cv_acc = xgb_genetic_algorithm(X_train, y_train_enc, cfg)
 
     # Train final model
     model = train_final_pipeline(X_train, y_train_enc, best_params, cfg.random_state)
@@ -394,6 +400,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--cm-labels", type=int, nargs="*", default=None,
                    help="Optional explicit label order for confusion matrix, e.g. --cm-labels 0 1 2")
 
+    p.add_argument("--params-from", type=Path, default=None,
+                   help="Path to a results.json to transfer best_params from (skips GA).")
+
     return p.parse_args()
 
 
@@ -421,12 +430,20 @@ def main() -> None:
     if not args.test.exists():
         raise FileNotFoundError(f"Test file not found: {args.test}")
 
+    best_params_override = None
+    if args.params_from is not None:
+        if not args.params_from.exists():
+            raise FileNotFoundError(f"--params-from file not found: {args.params_from}")
+        with open(args.params_from, encoding="utf-8") as f:
+            best_params_override = json.load(f)["best_params"]
+
     run_experiment(
         train_csv=args.train,
         test_csv=args.test,
         outdir=args.outdir,
         cfg=cfg,
         cm_labels=args.cm_labels,
+        best_params_override=best_params_override,
     )
 
 
