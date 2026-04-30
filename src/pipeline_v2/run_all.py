@@ -52,6 +52,8 @@ def main():
     p.add_argument("--type",  choices=["context", "user", "both"], default="both")
     p.add_argument("--start", type=int, default=1, choices=[1, 2, 3, 4, 5],
                    help="Start from this step number (skip earlier steps).")
+    p.add_argument("--gpu", action="store_true", default=False,
+                   help="Use GPU for XGBoost (step 4).")
     args = p.parse_args()
 
     print("=" * 60)
@@ -70,7 +72,10 @@ def main():
         run_step("STEP 3: User-Independent Dataset", step3_user_indep.main)
 
     if args.start <= 4:
-        sys.argv = ["step4_run_xgb.py", "--type", args.type]
+        step4_argv = ["step4_run_xgb.py", "--type", args.type]
+        if args.gpu:
+            step4_argv.append("--gpu")
+        sys.argv = step4_argv
         run_step("STEP 4: Run XGB (all scenarios × folds)", step4_run_xgb.main)
 
     if args.start <= 5:
