@@ -47,27 +47,20 @@ SCENARIOS = {
 
 # ============================================================
 # CONTEXT-INDEPENDENT FOLDS
-# Split by cognitive level (question_index = session.level)
-# Fold i: train on train_levels, test on test_levels (all users)
+# Split by level group (group 1={1,4}, 2={2,5}, 3={3,6}).
+# Fold i: train on train_groups, test on test_groups (all users).
 # ============================================================
 CONTEXT_FOLDS = [
-    {"fold": 1, "train_levels": [2, 3, 5, 6], "test_levels": [1, 4]},
-    {"fold": 2, "train_levels": [1, 3, 4, 6], "test_levels": [2, 5]},
-    {"fold": 3, "train_levels": [1, 2, 4, 5], "test_levels": [3, 6]},
+    {"fold": 1, "train_groups": [2, 3], "test_groups": [1]},
+    {"fold": 2, "train_groups": [1, 3], "test_groups": [2]},
+    {"fold": 3, "train_groups": [1, 2], "test_groups": [3]},
 ]
 
 # ============================================================
 # USER-INDEPENDENT FOLDS
-# Fixed user split (30 train / 15 test), then cognitive level
-# varies across folds (same as context folds above).
+# KFold(n_splits=3, shuffle=True, random_state=42) on unique users.
+# No cognitive-level filtering — all groups used in train and test.
 # ============================================================
-N_TEST_USERS = 15
-
-USER_FOLDS = [
-    {"fold": 1, "train_levels": [2, 3, 5, 6], "test_levels": [1, 4]},
-    {"fold": 2, "train_levels": [1, 3, 4, 6], "test_levels": [2, 5]},
-    {"fold": 3, "train_levels": [1, 2, 4, 5], "test_levels": [3, 6]},
-]
 
 # ============================================================
 # XGB RUNNER SETTINGS  (matches src/XGB.py defaults)

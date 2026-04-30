@@ -4,9 +4,16 @@ Step 1: Extract KIT and KHT features from raw JSON files → save to PKL.
 KHT (Key Hold Time)  = time between keydown and keyup for the same key
 KIT (Key Interval Time) = time between consecutive keydown events (bigram)
 
+Cognitive levels are grouped into 3 pairs before feature extraction:
+  Group 1: levels {1, 4}   Group 2: levels {2, 5}   Group 3: levels {3, 6}
+Features are computed over all keystrokes from both levels in the group
+within the same session → more stable statistics, lower variance.
+
+Each file produces 9 rows: 3 sessions × 3 groups.
+
 Outputs:
-  pkl/full.pkl    – normal users (sessions 1, 2, 3)
-  pkl/attack.pkl  – attack users (sessions 1, 2, 3)
+  pkl/full.pkl    – normal users
+  pkl/attack.pkl  – attack users
 """
 
 import json
@@ -28,8 +35,10 @@ from config import (
 # VALID KEYS
 # ============================================================
 VALID_KEYS = set(string.ascii_lowercase) | {" ", "backspace", "shift"}
-BIGRAM_KEYS = set(string.ascii_lowercase) | {" "}   # bigrams only over a-z + space
+BIGRAM_KEYS = set(string.ascii_lowercase) | {" "}
 
+# Group cognitive levels into 3 pairs
+LEVEL_GROUPS = {1: [1, 4], 2: [2, 5], 3: [3, 6]}
 
 # ============================================================
 # SUMMARIZE A LIST → 6 STATISTICS  (with IQR outlier removal)
@@ -41,11 +50,9 @@ def summarize(values: list) -> dict:
     if not values:
         return {"mean": 0.0, "std": 0.0, "s/m": 0.0, "range": 0.0, "max": 0.0, "median": 0.0}
     arr = np.array(values, dtype=float)
-    # Step 1: hard range filter [50, 5000] ms
     arr = arr[(arr >= TIMING_MIN_MS) & (arr <= TIMING_MAX_MS)]
     if len(arr) == 0:
         return {"mean": 0.0, "std": 0.0, "s/m": 0.0, "range": 0.0, "max": 0.0, "median": 0.0}
-    # Step 2: IQR × 2 outlier removal
     q1, q3 = np.percentile(arr, 25), np.percentile(arr, 75)
     iqr = q3 - q1
     arr = arr[(arr >= q1 - 2 * iqr) & (arr <= q3 + 2 * iqr)]
@@ -67,9 +74,7 @@ def summarize(values: list) -> dict:
 # PASS 1 – COUNT BIGRAMS ACROSS ALL JSON FILES IN A FOLDER
 # ============================================================
 def count_bigrams_in_folder(folder: Path, top_n: int) -> list:
-    """Return the top_n most frequent key→key bigrams."""
     total: Counter = Counter()
-
     for json_file in folder.rglob("*.json"):
         try:
             data = json.loads(json_file.read_text(encoding="utf-8"))
@@ -85,22 +90,52 @@ def count_bigrams_in_folder(folder: Path, top_n: int) -> list:
             if prev_type == "keyup" and typ == "keydown" and prev_key in BIGRAM_KEYS:
                 total[f"{prev_key}->{key}"] += 1
             prev_key, prev_type = key, typ
-
     return [b for b, _ in total.most_common(top_n)]
 
 
 # ============================================================
+# COLLECT RAW KHT/KIT/RUKD VALUES FROM A SINGLE QUESTION
+# (does not cross question boundaries)
+# ============================================================
+def _collect_question_values(events, top_bigrams, kht, kit, rukd):
+    """Accumulate raw timing values from one question's events into kht/kit/rukd."""
+    last_down: dict = {}
+    prev_down_key: Optional[str] = None
+    prev_down_ts:  Optional[float] = None
+    prev_up_key:   Optional[str] = None
+    prev_up_ts:    Optional[float] = None
+
+    for key, typ, ts in events:
+        if typ == "keydown":
+            last_down[key] = ts
+            if prev_down_key is not None:
+                bigram = f"{prev_down_key}->{key}"
+                interval = ts - prev_down_ts
+                if interval >= 0 and bigram in kit:
+                    kit[bigram].append(interval)
+            if prev_up_key is not None and prev_up_key in BIGRAM_KEYS and key in BIGRAM_KEYS:
+                bigram = f"{prev_up_key}->{key}"
+                flight = ts - prev_up_ts
+                if flight >= 0 and bigram in rukd:
+                    rukd[bigram].append(flight)
+            prev_down_key = key
+            prev_down_ts  = ts
+        elif typ == "keyup" and key in last_down:
+            hold = ts - last_down[key]
+            if hold >= 0:
+                kht[key].append(hold)
+            if key in BIGRAM_KEYS:
+                prev_up_key = key
+                prev_up_ts  = ts
+
+
+# ============================================================
 # EXTRACT FEATURES FROM ONE JSON FILE
-# Returns a list of dicts, one per session (sessions 1-3).
-# Each dict has: KHT+KIT features, question_index, session
+# Returns up to 9 rows: one per (session_id, group_id).
+# Features are computed over combined keystrokes from both levels
+# in the group, within the same session.
 # ============================================================
 def extract_features_from_json(filepath: Path, top_bigrams: list) -> list:
-    """
-    Extract features PER QUESTION (per question_index), not per session.
-    Each JSON has question_index values like 1.1..1.6, 2.1..2.6, 3.1..3.6.
-    Returns one row per question_index → 18 rows per file.
-    session is derived from the first digit of question_index.
-    """
     try:
         data = json.loads(filepath.read_text(encoding="utf-8"))
     except Exception as e:
@@ -109,86 +144,56 @@ def extract_features_from_json(filepath: Path, top_bigrams: list) -> list:
 
     keystrokes = data.get("keystrokes", [])
 
-    # Collect all unique question_index values present in file
-    all_qi = sorted(set(
-        ev.get("question_index")
-        for ev in keystrokes
-        if ev.get("question_index") not in (None, 0, "0")
-    ))
+    # Build index: (session_id, level) → list of (key, typ, ts)
+    question_events: dict = {}
+    for ev in keystrokes:
+        qi = ev.get("question_index")
+        if qi in (None, 0, "0"):
+            continue
+        try:
+            parts = str(qi).split(".")
+            sess  = int(parts[0])
+            level = int(parts[1])
+        except Exception:
+            continue
+        key = str(ev.get("key", "")).lower()
+        typ = ev.get("event", "").lower()
+        ts  = ev.get("timestamp")
+        if key in VALID_KEYS and typ in {"keydown", "keyup"} and ts is not None:
+            question_events.setdefault((sess, level), []).append((key, typ, ts))
 
     rows_out = []
 
-    for q_index in all_qi:
-        kht:  dict = {k: [] for k in VALID_KEYS}
-        kit:  dict = {b: [] for b in top_bigrams}
-        rukd: dict = {b: [] for b in top_bigrams}
+    for session_id in [1, 2, 3]:
+        for group_id, levels in LEVEL_GROUPS.items():
+            kht  = {k: [] for k in VALID_KEYS}
+            kit  = {b: [] for b in top_bigrams}
+            rukd = {b: [] for b in top_bigrams}
 
-        # Filter events to this specific question_index
-        events = []
-        for ev in keystrokes:
-            if ev.get("question_index") != q_index:
+            found_any = False
+            for level in levels:
+                q_events = question_events.get((session_id, level), [])
+                if q_events:
+                    found_any = True
+                    _collect_question_values(q_events, top_bigrams, kht, kit, rukd)
+
+            if not found_any:
                 continue
-            key = str(ev.get("key", "")).lower()
-            typ = ev.get("event", "").lower()
-            ts  = ev.get("timestamp")
-            if key in VALID_KEYS and typ in {"keydown", "keyup"} and ts is not None:
-                events.append((key, typ, ts))
 
-        # Derive session from first digit of question_index (e.g. "2.3" → session 2)
-        try:
-            session_id = int(str(q_index).split(".")[0])
-        except Exception:
-            continue
+            flat: dict = {}
+            for key, vals in kht.items():
+                for stat, val in summarize(vals).items():
+                    flat[f"{key}_{stat}"] = val
+            for bigram, vals in kit.items():
+                for stat, val in summarize(vals).items():
+                    flat[f"{bigram}_{stat}"] = val
+            for bigram, vals in rukd.items():
+                for stat, val in summarize(vals).items():
+                    flat[f"{bigram}_rkd_{stat}"] = val
 
-        # Compute KHT, KIT, KU→KD
-        last_down: dict = {}
-        prev_down_key: Optional[str] = None
-        prev_down_ts:  Optional[float] = None
-        prev_up_key:   Optional[str] = None
-        prev_up_ts:    Optional[float] = None
-
-        for key, typ, ts in events:
-            if typ == "keydown":
-                last_down[key] = ts
-
-                if prev_down_key is not None:
-                    bigram = f"{prev_down_key}->{key}"
-                    interval = ts - prev_down_ts
-                    if interval >= 0 and bigram in kit:
-                        kit[bigram].append(interval)
-
-                if prev_up_key is not None and prev_up_key in BIGRAM_KEYS and key in BIGRAM_KEYS:
-                    bigram = f"{prev_up_key}->{key}"
-                    flight = ts - prev_up_ts
-                    if flight >= 0 and bigram in rukd:
-                        rukd[bigram].append(flight)
-
-                prev_down_key = key
-                prev_down_ts  = ts
-
-            elif typ == "keyup" and key in last_down:
-                hold = ts - last_down[key]
-                if hold >= 0:
-                    kht[key].append(hold)
-                if key in BIGRAM_KEYS:
-                    prev_up_key = key
-                    prev_up_ts  = ts
-
-        # Flatten into one feature dict
-        flat: dict = {}
-        for key, vals in kht.items():
-            for stat, val in summarize(vals).items():
-                flat[f"{key}_{stat}"] = val
-        for bigram, vals in kit.items():
-            for stat, val in summarize(vals).items():
-                flat[f"{bigram}_{stat}"] = val
-        for bigram, vals in rukd.items():
-            for stat, val in summarize(vals).items():
-                flat[f"{bigram}_rkd_{stat}"] = val
-
-        flat["question_index"] = q_index
-        flat["session"]        = session_id
-        rows_out.append(flat)
+            flat["session"]  = session_id
+            flat["group_id"] = group_id
+            rows_out.append(flat)
 
     return rows_out
 
@@ -198,14 +203,10 @@ def extract_features_from_json(filepath: Path, top_bigrams: list) -> list:
 # ============================================================
 def process_folder(
     folder: Path,
-    json_filenames: list,   # e.g. ["first_time.json", "second_time.json"]
+    json_filenames: list,
     top_bigrams: list,
-    source_label: str,      # "normal" or "attack"
+    source_label: str,
 ) -> list:
-    """
-    Walk user sub-folders, read each json file, extract features.
-    Returns a list of row-dicts ready to pickle.
-    """
     rows = []
     for user_dir in sorted(folder.iterdir()):
         if not user_dir.is_dir():
@@ -216,12 +217,12 @@ def process_folder(
             if not fpath.exists():
                 print(f"  [missing] {fpath}")
                 continue
-            sessions = extract_features_from_json(fpath, top_bigrams)
-            for row in sessions:
+            extracted = extract_features_from_json(fpath, top_bigrams)
+            for row in extracted:
                 row["user_id"] = user_id
                 row["source"]  = source_label
                 row["file"]    = fname
-            rows.extend(sessions)
+            rows.extend(extracted)
     return rows
 
 
@@ -236,12 +237,10 @@ def main():
     if not ATTACK_FOLDER.exists():
         raise FileNotFoundError(f"Attack folder not found: {ATTACK_FOLDER}")
 
-    # ---- Pass 1: build top-N bigrams from normal folder ----
     print(f"Computing top-{TOP_BIGRAMS_N} bigrams from {NORMAL_FOLDER} ...")
     top_bigrams = count_bigrams_in_folder(NORMAL_FOLDER, TOP_BIGRAMS_N)
     print(f"  Done. Example bigrams: {top_bigrams[:5]}")
 
-    # ---- Pass 2: extract normal features ----
     print(f"\nExtracting normal features from {NORMAL_FOLDER} ...")
     normal_rows = process_folder(
         NORMAL_FOLDER,
@@ -254,7 +253,6 @@ def main():
         pickle.dump(normal_rows, f)
     print(f"  Saved to {NORMAL_PKL}")
 
-    # ---- Pass 3: extract attack features ----
     print(f"\nExtracting attack features from {ATTACK_FOLDER} ...")
     attack_rows = process_folder(
         ATTACK_FOLDER,

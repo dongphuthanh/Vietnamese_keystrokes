@@ -2,21 +2,25 @@
 Step 3: User-Independent dataset split.
 
 Train and test come from DIFFERENT users.
-The user split is fixed (30 train / 15 test), then cognitive level
-varies across the 3 folds (same pairs as context-independent).
+Uses KFold(n_splits=3, shuffle=True, random_state=42) on unique users
+— identical to the collaborator's split:
 
-Test  = test_users  AND test_cognitive_levels  (all 5 labels)
-Train = train_users AND train_cognitive_levels  (filtered by scenario)
+    n_splits = 3
+    unique_users = np.unique(ID)
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+
+All level groups are used in both train and test (no group filtering).
 
 Output: user_indep_datasets/train_M2_fold1.csv ... (24 files)
 """
 
+import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
 
 from config import (
     NORMAL_PKL, ATTACK_PKL,
-    USER_DIR, SCENARIOS, USER_FOLDS, N_TEST_USERS,
+    USER_DIR, SCENARIOS,
 )
 from utils import load_pkl_as_df, drop_meta_cols
 
@@ -24,7 +28,6 @@ from utils import load_pkl_as_df, drop_meta_cols
 def main():
     USER_DIR.mkdir(parents=True, exist_ok=True)
 
-    # ---- Load data ----
     print("Loading PKL files...")
     df_normal = load_pkl_as_df(NORMAL_PKL, "normal")
     df_attack  = load_pkl_as_df(ATTACK_PKL, "attack")
@@ -33,34 +36,27 @@ def main():
 
     n_before = len(df_all)
     df_all = df_all[
-        df_all["cognitive_level"].notna() & (df_all["label"] != -1)
+        df_all["group_id"].notna() & (df_all["label"] != -1)
     ].copy()
-    df_all["cognitive_level"] = df_all["cognitive_level"].astype(int)
-    df_all["session"]         = df_all["session"].astype(int)
+    df_all["group_id"] = df_all["group_id"].astype(int)
+    df_all["session"]  = df_all["session"].astype(int)
     print(f"Valid rows: {len(df_all)} / {n_before}")
 
-    # ---- Fixed user split (based on normal users only) ----
-    all_users  = df_normal["user_id"].unique()
-    test_ratio = N_TEST_USERS / len(all_users)
-    train_users, test_users = train_test_split(
-        all_users, test_size=test_ratio, random_state=42
-    )
-    print(f"Users: {len(all_users)} total | {len(train_users)} train | {len(test_users)} test")
+    # KFold on unique normal users — matches collaborator's split exactly
+    all_users = np.unique(df_normal["user_id"].values)
+    kf = KFold(n_splits=3, shuffle=True, random_state=42)
+    print(f"Users: {len(all_users)} total | 3-fold split")
 
-    # ---- Generate 3 folds × 4 scenarios ----
     print("\nGenerating user-independent datasets...")
-    for fold_cfg in USER_FOLDS:
-        fold        = fold_cfg["fold"]
-        train_lvls  = fold_cfg["train_levels"]
-        test_lvls   = fold_cfg["test_levels"]
+    for fold_idx, (train_idx, test_idx) in enumerate(kf.split(all_users)):
+        fold        = fold_idx + 1
+        train_users = all_users[train_idx]
+        test_users  = all_users[test_idx]
 
-        print(f"\n  Fold {fold} | train levels {train_lvls} | test levels {test_lvls}")
+        print(f"\n  Fold {fold} | train {len(train_users)} users | test {len(test_users)} users")
 
-        # Test: test_users × test_levels, all 5 labels
-        df_test = df_all[
-            df_all["user_id"].isin(test_users) &
-            df_all["cognitive_level"].isin(test_lvls)
-        ].copy()
+        # Test: test_users, all groups, all labels
+        df_test = df_all[df_all["user_id"].isin(test_users)].copy()
         df_test = df_test.sample(frac=1, random_state=42).reset_index(drop=True)
         df_test_out = drop_meta_cols(df_test)
 
@@ -69,9 +65,8 @@ def main():
             for source, sessions in conditions:
                 mask = (
                     df_all["user_id"].isin(train_users) &
-                    (df_all["source"]         == source) &
-                    df_all["session"].isin(sessions) &
-                    df_all["cognitive_level"].isin(train_lvls)
+                    (df_all["source"]      == source) &
+                    df_all["session"].isin(sessions)
                 )
                 train_frames.append(df_all[mask])
 
