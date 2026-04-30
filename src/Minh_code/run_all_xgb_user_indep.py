@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 Chạy XGBoost cho TẤT CẢ các kịch bản (M2, M3, M4, M5) và 3 folds
+Dùng cho pipeline USER-INDEPENDENT (train/test trên tập users khác nhau)
 
-Fix:
-  - sys.executable thay vì "python" → chạy đúng venv
-  - --cm-labels luôn là 0 1 2 3 4 vì test set chứa tất cả 5 nhãn
+Dataset: user_indep_cognitive_datasets/ (sinh bởi user_independ.py)
+Output:  runs_user_indep/
 """
 
 import os
@@ -15,8 +15,8 @@ from pathlib import Path
 # ==========================================
 # CẤU HÌNH
 # ==========================================
-DATA_DIR = Path("cognitive_level_datasets")
-RUNS_DIR = Path("runs_cognitive_level")
+DATA_DIR = Path("user_indep_cognitive_datasets")
+RUNS_DIR = Path("runs_user_indep")
 XGB_SCRIPT = "XGB.py"
 
 SCENARIOS = ["M2", "M3", "M4", "M5"]
@@ -36,7 +36,7 @@ CM_LABELS = [0, 1, 2, 3, 4]
 # ==========================================
 if not DATA_DIR.exists():
     print(f"❌ Không tìm thấy thư mục {DATA_DIR}")
-    print("   Vui lòng chạy generate_cognitive_level_splits.py trước!")
+    print("   Vui lòng chạy user_independ.py trước!")
     exit(1)
 
 if not os.path.exists(XGB_SCRIPT):
@@ -49,7 +49,9 @@ RUNS_DIR.mkdir(parents=True, exist_ok=True)
 # CHẠY XGB CHO TẤT CẢ KỊCH BẢN
 # ==========================================
 print("="*70)
-print("   CHẠY XGB CHO TẤT CẢ KỊCH BẢN (COGNITIVE LEVEL SPLIT 14/25/36)")
+print("   CHẠY XGB: USER-INDEPENDENT + COGNITIVE LEVEL SPLIT")
+print(f"   Data:   {DATA_DIR}")
+print(f"   Output: {RUNS_DIR}")
 print(f"   Python: {sys.executable}")
 print("="*70)
 
@@ -104,5 +106,5 @@ print("\n" + "="*70)
 print("🎉 HOÀN TẤT TẤT CẢ!")
 print(f"   Kết quả được lưu trong: {RUNS_DIR}")
 print("="*70)
-print("\n💡 Chạy collect_results_cognitive.py để tổng hợp kết quả:")
-print("   python collect_results_cognitive.py")
+print("\n💡 Chạy collect_results_user_indep.py để tổng hợp kết quả:")
+print("   python collect_results_user_indep.py")

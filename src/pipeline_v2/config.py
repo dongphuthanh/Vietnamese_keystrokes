@@ -8,8 +8,8 @@ from pathlib import Path
 # ============================================================
 # INPUT DATA PATHS  (change these to match your machine)
 # ============================================================
-NORMAL_FOLDER = Path(r"C:\Users\cao minh\Downloads\preproccessed-20260223T225650Z-1-001\preproccessed")
-ATTACK_FOLDER = Path(r"C:\Users\cao minh\Downloads\Attack-20260409T014455Z-3-001\Attack")
+NORMAL_FOLDER = Path(r"C:\Users\ADMIN\Documents\Vietnamese_keystrokes\dataset\viet_preprocessed")
+ATTACK_FOLDER = Path(r"C:\Users\ADMIN\Documents\Vietnamese_keystrokes\dataset\Attack4")
 
 # ============================================================
 # OUTPUT PATHS  (relative to this file's parent directory)
