@@ -1,10 +1,14 @@
 """
 Step 4: Run XGB.py on all scenarios × folds for both experiment types.
 
+M5 is run first with full GA tuning.
+M2/M3/M4 reuse the best_params from the corresponding M5 fold (skip GA).
+
 Usage:
   python step4_run_xgb.py                  # runs both context + user
   python step4_run_xgb.py --type context   # only context-independent
   python step4_run_xgb.py --type user      # only user-independent
+  python step4_run_xgb.py --gpu            # use GPU for XGBoost
 """
 
 import argparse
@@ -25,17 +29,16 @@ from config import (
 FOLDS = [1, 2, 3]
 
 
-def run_one(train_csv: Path, test_csv: Path, outdir: Path, use_gpu: bool = False) -> bool:
+def run_one(train_csv: Path, test_csv: Path, outdir: Path,
+            use_gpu: bool = False, params_from: Path = None) -> bool:
     if not train_csv.exists() or not test_csv.exists():
         print(f"  [skip] missing CSV: {train_csv.name} or {test_csv.name}")
         return False
 
-    # Skip if already completed
     if (outdir / "results.json").exists():
         print(f"  [done] skipping {outdir.name} (results.json exists)")
         return True
 
-    # Skip empty train sets (can happen when cognitive-level filter removes all rows)
     if pd.read_csv(train_csv).shape[0] == 0:
         print(f"  [skip] empty train CSV: {train_csv.name}")
         return False
@@ -52,10 +55,13 @@ def run_one(train_csv: Path, test_csv: Path, outdir: Path, use_gpu: bool = False
         "--generations",        str(GENERATIONS),
         "--cm-labels",
     ] + [str(l) for l in CM_LABELS]
+
     if use_gpu:
         cmd.append("--gpu")
+    if params_from is not None and params_from.exists():
+        cmd += ["--params-from", str(params_from)]
 
-    print(f"  Running: {outdir.name}")
+    print(f"  Running: {outdir.name}" + (" [transferred params]" if params_from else ""))
     try:
         subprocess.run(cmd, check=True)
         return True
@@ -73,13 +79,29 @@ def run_experiment(data_dir: Path, runs_dir: Path, label: str, use_gpu: bool = F
     print(f"{'='*60}")
 
     total, done = 0, 0
-    for scenario in SCENARIOS:
+
+    # ---- Pass 1: run M5 with full GA for all folds ----
+    print("\n  [Pass 1] Running M5 (GA tuning)...")
+    m5_results: dict = {}   # fold → Path to results.json
+    for fold in FOLDS:
+        total += 1
+        train_csv = data_dir / f"train_M5_fold{fold}.csv"
+        test_csv  = data_dir / f"test_M5_fold{fold}.csv"
+        outdir    = runs_dir / f"xgb_M5_fold{fold}"
+        if run_one(train_csv, test_csv, outdir, use_gpu):
+            done += 1
+            m5_results[fold] = outdir / "results.json"
+
+    # ---- Pass 2: run M2/M3/M4 using M5 params ----
+    print("\n  [Pass 2] Running M2/M3/M4 (transferred params from M5)...")
+    for scenario in [s for s in SCENARIOS if s != "M5"]:
         for fold in FOLDS:
             total += 1
-            train_csv = data_dir / f"train_{scenario}_fold{fold}.csv"
-            test_csv  = data_dir / f"test_{scenario}_fold{fold}.csv"
-            outdir    = runs_dir  / f"xgb_{scenario}_fold{fold}"
-            if run_one(train_csv, test_csv, outdir, use_gpu):
+            train_csv  = data_dir / f"train_{scenario}_fold{fold}.csv"
+            test_csv   = data_dir / f"test_{scenario}_fold{fold}.csv"
+            outdir     = runs_dir / f"xgb_{scenario}_fold{fold}"
+            params_src = m5_results.get(fold)
+            if run_one(train_csv, test_csv, outdir, use_gpu, params_from=params_src):
                 done += 1
 
     print(f"\n  Completed {done}/{total} runs for {label}")
