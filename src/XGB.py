@@ -182,6 +182,7 @@ def xgb_genetic_algorithm(
             colsample_bytree=individual[4],
             eval_metric="mlogloss",
             random_state=cfg.random_state,
+            tree_method="hist",  
         )
         pipeline = Pipeline(
             [
