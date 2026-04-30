@@ -14,7 +14,8 @@ Output: context_indep_datasets/train_M2_fold1.csv ... (24 files total)
 
 import pandas as pd
 from config import (
-    NORMAL_PKL, ATTACK_PKL,
+    NORMAL_PKL_CONTEXT as NORMAL_PKL,
+    ATTACK_PKL_CONTEXT as ATTACK_PKL,
     CONTEXT_DIR, SCENARIOS, CONTEXT_FOLDS,
 )
 from utils import load_pkl_as_df, drop_meta_cols

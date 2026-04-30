@@ -19,7 +19,8 @@ import pandas as pd
 from sklearn.model_selection import KFold
 
 from config import (
-    NORMAL_PKL, ATTACK_PKL,
+    NORMAL_PKL_USER as NORMAL_PKL,
+    ATTACK_PKL_USER as ATTACK_PKL,
     USER_DIR, SCENARIOS,
 )
 from utils import load_pkl_as_df, drop_meta_cols

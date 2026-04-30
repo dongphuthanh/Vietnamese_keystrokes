@@ -1,19 +1,21 @@
 """
-Step 1: Extract KIT and KHT features from raw JSON files → save to PKL.
+Step 1: Extract KIT/KHT/RUKD features from raw JSON files → save to PKL.
 
-KHT (Key Hold Time)  = time between keydown and keyup for the same key
-KIT (Key Interval Time) = time between consecutive keydown events (bigram)
+Two extraction granularities are produced:
 
-Cognitive levels are grouped into 3 pairs before feature extraction:
-  Group 1: levels {1, 4}   Group 2: levels {2, 5}   Group 3: levels {3, 6}
-Features are computed over all keystrokes from both levels in the group
-within the same session → more stable statistics, lower variance.
+  Context-independent (9 rows/file):
+    Levels grouped into 3 pairs per session: {1,4}, {2,5}, {3,6}.
+    Each row = one (session, group) combination.
+    → lower variance statistics (more keystrokes per row).
 
-Each file produces 9 rows: 3 sessions × 3 groups.
+  User-independent (3 rows/file):
+    All 6 levels combined per session.
+    Each row = one full session.
+    → maximum data aggregation per session.
 
 Outputs:
-  pkl/full.pkl    – normal users
-  pkl/attack.pkl  – attack users
+  pkl/full_context.pkl   pkl/attack_context.pkl   (context-indep)
+  pkl/full_user.pkl      pkl/attack_user.pkl       (user-indep)
 """
 
 import json
@@ -27,24 +29,21 @@ import numpy as np
 
 from config import (
     NORMAL_FOLDER, ATTACK_FOLDER,
-    NORMAL_PKL, ATTACK_PKL,
+    NORMAL_PKL_CONTEXT, ATTACK_PKL_CONTEXT,
+    NORMAL_PKL_USER,   ATTACK_PKL_USER,
     PKL_DIR, TOP_BIGRAMS_N,
 )
 
-# ============================================================
-# VALID KEYS
-# ============================================================
-VALID_KEYS = set(string.ascii_lowercase) | {" ", "backspace", "shift"}
+VALID_KEYS  = set(string.ascii_lowercase) | {" ", "backspace", "shift"}
 BIGRAM_KEYS = set(string.ascii_lowercase) | {" "}
 
-# Group cognitive levels into 3 pairs
-LEVEL_GROUPS = {1: [1, 4], 2: [2, 5], 3: [3, 6]}
+# Groupings
+LEVEL_GROUPS_CONTEXT = {1: [1, 4], 2: [2, 5], 3: [3, 6]}   # 9 rows/file
+LEVEL_GROUPS_USER    = {1: [1, 2, 3, 4, 5, 6]}              # 3 rows/file
 
-# ============================================================
-# SUMMARIZE A LIST → 6 STATISTICS  (with IQR outlier removal)
-# ============================================================
 TIMING_MIN_MS = 50.0
 TIMING_MAX_MS = 5000.0
+
 
 def summarize(values: list) -> dict:
     if not values:
@@ -70,9 +69,6 @@ def summarize(values: list) -> dict:
     }
 
 
-# ============================================================
-# PASS 1 – COUNT BIGRAMS ACROSS ALL JSON FILES IN A FOLDER
-# ============================================================
 def count_bigrams_in_folder(folder: Path, top_n: int) -> list:
     total: Counter = Counter()
     for json_file in folder.rglob("*.json"):
@@ -83,8 +79,8 @@ def count_bigrams_in_folder(folder: Path, top_n: int) -> list:
         keystrokes = data.get("keystrokes", [])
         prev_key, prev_type = None, None
         for ev in keystrokes:
-            key  = str(ev.get("key", "")).lower()
-            typ  = ev.get("event", "").lower()
+            key = str(ev.get("key", "")).lower()
+            typ = ev.get("event", "").lower()
             if key not in BIGRAM_KEYS or typ not in {"keydown", "keyup"}:
                 continue
             if prev_type == "keyup" and typ == "keydown" and prev_key in BIGRAM_KEYS:
@@ -93,12 +89,8 @@ def count_bigrams_in_folder(folder: Path, top_n: int) -> list:
     return [b for b, _ in total.most_common(top_n)]
 
 
-# ============================================================
-# COLLECT RAW KHT/KIT/RUKD VALUES FROM A SINGLE QUESTION
-# (does not cross question boundaries)
-# ============================================================
 def _collect_question_values(events, top_bigrams, kht, kit, rukd):
-    """Accumulate raw timing values from one question's events into kht/kit/rukd."""
+    """Accumulate raw timing values from one question into kht/kit/rukd dicts."""
     last_down: dict = {}
     prev_down_key: Optional[str] = None
     prev_down_ts:  Optional[float] = None
@@ -129,13 +121,29 @@ def _collect_question_values(events, top_bigrams, kht, kit, rukd):
                 prev_up_ts  = ts
 
 
-# ============================================================
-# EXTRACT FEATURES FROM ONE JSON FILE
-# Returns up to 9 rows: one per (session_id, group_id).
-# Features are computed over combined keystrokes from both levels
-# in the group, within the same session.
-# ============================================================
-def extract_features_from_json(filepath: Path, top_bigrams: list) -> list:
+def _flatten(kht, kit, rukd) -> dict:
+    flat: dict = {}
+    for key, vals in kht.items():
+        for stat, val in summarize(vals).items():
+            flat[f"{key}_{stat}"] = val
+    for bigram, vals in kit.items():
+        for stat, val in summarize(vals).items():
+            flat[f"{bigram}_{stat}"] = val
+    for bigram, vals in rukd.items():
+        for stat, val in summarize(vals).items():
+            flat[f"{bigram}_rkd_{stat}"] = val
+    return flat
+
+
+def extract_features_from_json(filepath: Path, top_bigrams: list,
+                                level_groups: dict) -> list:
+    """
+    Extract features from one JSON file.
+
+    level_groups: dict mapping group_id → list of cognitive levels.
+      LEVEL_GROUPS_CONTEXT = {1:[1,4], 2:[2,5], 3:[3,6]}  → 9 rows/file
+      LEVEL_GROUPS_USER    = {1:[1,2,3,4,5,6]}             → 3 rows/file
+    """
     try:
         data = json.loads(filepath.read_text(encoding="utf-8"))
     except Exception as e:
@@ -144,7 +152,7 @@ def extract_features_from_json(filepath: Path, top_bigrams: list) -> list:
 
     keystrokes = data.get("keystrokes", [])
 
-    # Build index: (session_id, level) → list of (key, typ, ts)
+    # Index events by (session_id, level)
     question_events: dict = {}
     for ev in keystrokes:
         qi = ev.get("question_index")
@@ -163,9 +171,8 @@ def extract_features_from_json(filepath: Path, top_bigrams: list) -> list:
             question_events.setdefault((sess, level), []).append((key, typ, ts))
 
     rows_out = []
-
     for session_id in [1, 2, 3]:
-        for group_id, levels in LEVEL_GROUPS.items():
+        for group_id, levels in level_groups.items():
             kht  = {k: [] for k in VALID_KEYS}
             kit  = {b: [] for b in top_bigrams}
             rukd = {b: [] for b in top_bigrams}
@@ -180,17 +187,7 @@ def extract_features_from_json(filepath: Path, top_bigrams: list) -> list:
             if not found_any:
                 continue
 
-            flat: dict = {}
-            for key, vals in kht.items():
-                for stat, val in summarize(vals).items():
-                    flat[f"{key}_{stat}"] = val
-            for bigram, vals in kit.items():
-                for stat, val in summarize(vals).items():
-                    flat[f"{bigram}_{stat}"] = val
-            for bigram, vals in rukd.items():
-                for stat, val in summarize(vals).items():
-                    flat[f"{bigram}_rkd_{stat}"] = val
-
+            flat = _flatten(kht, kit, rukd)
             flat["session"]  = session_id
             flat["group_id"] = group_id
             rows_out.append(flat)
@@ -198,15 +195,8 @@ def extract_features_from_json(filepath: Path, top_bigrams: list) -> list:
     return rows_out
 
 
-# ============================================================
-# PROCESS ONE FOLDER OF USERS
-# ============================================================
-def process_folder(
-    folder: Path,
-    json_filenames: list,
-    top_bigrams: list,
-    source_label: str,
-) -> list:
+def process_folder(folder: Path, json_filenames: list, top_bigrams: list,
+                   source_label: str, level_groups: dict) -> list:
     rows = []
     for user_dir in sorted(folder.iterdir()):
         if not user_dir.is_dir():
@@ -217,7 +207,7 @@ def process_folder(
             if not fpath.exists():
                 print(f"  [missing] {fpath}")
                 continue
-            extracted = extract_features_from_json(fpath, top_bigrams)
+            extracted = extract_features_from_json(fpath, top_bigrams, level_groups)
             for row in extracted:
                 row["user_id"] = user_id
                 row["source"]  = source_label
@@ -226,9 +216,12 @@ def process_folder(
     return rows
 
 
-# ============================================================
-# MAIN
-# ============================================================
+def _save(rows, path):
+    with open(path, "wb") as f:
+        pickle.dump(rows, f)
+    print(f"    Saved {len(rows)} rows → {path}")
+
+
 def main():
     PKL_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -239,31 +232,26 @@ def main():
 
     print(f"Computing top-{TOP_BIGRAMS_N} bigrams from {NORMAL_FOLDER} ...")
     top_bigrams = count_bigrams_in_folder(NORMAL_FOLDER, TOP_BIGRAMS_N)
-    print(f"  Done. Example bigrams: {top_bigrams[:5]}")
+    print(f"  Done. Example: {top_bigrams[:5]}")
 
-    print(f"\nExtracting normal features from {NORMAL_FOLDER} ...")
-    normal_rows = process_folder(
-        NORMAL_FOLDER,
-        json_filenames=["first_time.json", "second_time.json"],
-        top_bigrams=top_bigrams,
-        source_label="normal",
-    )
-    print(f"  {len(normal_rows)} rows extracted")
-    with open(NORMAL_PKL, "wb") as f:
-        pickle.dump(normal_rows, f)
-    print(f"  Saved to {NORMAL_PKL}")
+    normal_files = ["first_time.json", "second_time.json"]
+    attack_files = ["first_time_attack.json", "second_time_attack.json"]
 
-    print(f"\nExtracting attack features from {ATTACK_FOLDER} ...")
-    attack_rows = process_folder(
-        ATTACK_FOLDER,
-        json_filenames=["first_time_attack.json", "second_time_attack.json"],
-        top_bigrams=top_bigrams,
-        source_label="attack",
-    )
-    print(f"  {len(attack_rows)} rows extracted")
-    with open(ATTACK_PKL, "wb") as f:
-        pickle.dump(attack_rows, f)
-    print(f"  Saved to {ATTACK_PKL}")
+    # ---- Context-independent PKLs (grouped by level pairs) ----
+    print("\n[Context-indep] Extracting normal ...")
+    normal_ctx = process_folder(NORMAL_FOLDER, normal_files, top_bigrams, "normal", LEVEL_GROUPS_CONTEXT)
+    print("[Context-indep] Extracting attack ...")
+    attack_ctx = process_folder(ATTACK_FOLDER, attack_files, top_bigrams, "attack", LEVEL_GROUPS_CONTEXT)
+    _save(normal_ctx, NORMAL_PKL_CONTEXT)
+    _save(attack_ctx, ATTACK_PKL_CONTEXT)
+
+    # ---- User-independent PKLs (all levels per session) ----
+    print("\n[User-indep] Extracting normal ...")
+    normal_usr = process_folder(NORMAL_FOLDER, normal_files, top_bigrams, "normal", LEVEL_GROUPS_USER)
+    print("[User-indep] Extracting attack ...")
+    attack_usr = process_folder(ATTACK_FOLDER, attack_files, top_bigrams, "attack", LEVEL_GROUPS_USER)
+    _save(normal_usr, NORMAL_PKL_USER)
+    _save(attack_usr, ATTACK_PKL_USER)
 
     print("\n[Step 1] Done.")
 
