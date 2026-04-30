@@ -195,12 +195,8 @@ def xgb_genetic_algorithm(
             reg_lambda=individual[7],
             eval_metric="mlogloss",
             random_state=cfg.random_state,
-<<<<<<< HEAD:src/Minh code/XGB.py
             tree_method="hist",     # <-- Add this
             device="cuda",
-=======
-            **gpu_kwargs,
->>>>>>> 8eea6159e8ceb28174a054173b7fe5040bc6eb00:src/Minh_code/XGB.py
         )
         pipeline = Pipeline(
             [
@@ -296,13 +292,9 @@ def train_final_pipeline(
                 **best_params,
                 eval_metric="mlogloss",
                 random_state=random_state,
-<<<<<<< HEAD:src/Minh code/XGB.py
                 use_label_encoder=False,
                 tree_method="hist",  # <-- Add this
                 device="cuda",
-=======
-                **gpu_kwargs,
->>>>>>> 8eea6159e8ceb28174a054173b7fe5040bc6eb00:src/Minh_code/XGB.py
             )),
         ]
     )

@@ -8,7 +8,7 @@ from pathlib import Path
 # ============================================================
 # INPUT DATA PATHS  (change these to match your machine)
 # ============================================================
-NORMAL_FOLDER = Path(r"C:\Users\ADMIN\Documents\Vietnamese_keystrokes\dataset\viet_preprocessed")
+NORMAL_FOLDER = Path(r"C:\Users\ADMIN\Documents\Vietnamese_keystrokes\dataset\Attack4")
 ATTACK_FOLDER = Path(r"C:\Users\ADMIN\Documents\Vietnamese_keystrokes\dataset\Attack4")
 
 # ============================================================
@@ -30,7 +30,7 @@ XGB_SCRIPT = BASE_DIR.parent / "XGB.py"
 # ============================================================
 # FEATURE EXTRACTION
 # ============================================================
-TOP_BIGRAMS_N = 200       # number of most-frequent bigrams to keep
+TOP_BIGRAMS_N = 50       # number of most-frequent bigrams to keep
 
 # ============================================================
 # SCENARIOS
