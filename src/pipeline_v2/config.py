@@ -21,8 +21,17 @@ USER_DIR       = BASE_DIR / "user_indep_datasets"      # split by user + cogniti
 RUNS_CONTEXT   = BASE_DIR / "runs_context_indep"
 RUNS_USER      = BASE_DIR / "runs_user_indep"
 
-NORMAL_PKL = PKL_DIR / "full.pkl"
-ATTACK_PKL = PKL_DIR / "attack.pkl"
+# Context-indep PKLs: features extracted per (session, level-group {1,4}/{2,5}/{3,6})
+NORMAL_PKL_CONTEXT = PKL_DIR / "full_context.pkl"
+ATTACK_PKL_CONTEXT = PKL_DIR / "attack_context.pkl"
+
+# User-indep PKLs: features extracted per session (all 6 levels combined)
+NORMAL_PKL_USER = PKL_DIR / "full_user.pkl"
+ATTACK_PKL_USER = PKL_DIR / "attack_user.pkl"
+
+# Aliases kept for backward compatibility
+NORMAL_PKL = NORMAL_PKL_CONTEXT
+ATTACK_PKL = ATTACK_PKL_CONTEXT
 
 # Path to the XGB.py script (in src/)
 XGB_SCRIPT = BASE_DIR.parent / "XGB.py"
@@ -47,27 +56,20 @@ SCENARIOS = {
 
 # ============================================================
 # CONTEXT-INDEPENDENT FOLDS
-# Split by cognitive level (question_index = session.level)
-# Fold i: train on train_levels, test on test_levels (all users)
+# Split by level group (group 1={1,4}, 2={2,5}, 3={3,6}).
+# Fold i: train on train_groups, test on test_groups (all users).
 # ============================================================
 CONTEXT_FOLDS = [
-    {"fold": 1, "train_levels": [2, 3, 5, 6], "test_levels": [1, 4]},
-    {"fold": 2, "train_levels": [1, 3, 4, 6], "test_levels": [2, 5]},
-    {"fold": 3, "train_levels": [1, 2, 4, 5], "test_levels": [3, 6]},
+    {"fold": 1, "train_groups": [2, 3], "test_groups": [1]},
+    {"fold": 2, "train_groups": [1, 3], "test_groups": [2]},
+    {"fold": 3, "train_groups": [1, 2], "test_groups": [3]},
 ]
 
 # ============================================================
 # USER-INDEPENDENT FOLDS
-# Fixed user split (30 train / 15 test), then cognitive level
-# varies across folds (same as context folds above).
+# KFold(n_splits=3, shuffle=True, random_state=42) on unique users.
+# No cognitive-level filtering — all groups used in train and test.
 # ============================================================
-N_TEST_USERS = 15
-
-USER_FOLDS = [
-    {"fold": 1, "train_levels": [2, 3, 5, 6], "test_levels": [1, 4]},
-    {"fold": 2, "train_levels": [1, 3, 4, 6], "test_levels": [2, 5]},
-    {"fold": 3, "train_levels": [1, 2, 4, 5], "test_levels": [3, 6]},
-]
 
 # ============================================================
 # XGB RUNNER SETTINGS  (matches src/XGB.py defaults)

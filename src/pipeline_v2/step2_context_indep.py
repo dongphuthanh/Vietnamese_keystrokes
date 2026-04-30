@@ -1,20 +1,21 @@
 """
 Step 2: Context-Independent dataset split.
 
-Split by cognitive level (question_index = session.level).
+Split by level group (group 1={1,4}, group 2={2,5}, group 3={3,6}).
 All users appear in both train and test, but different question types.
 
-Fold splits:
-  Fold 1: train levels [2,3,5,6]  test levels [1,4]
-  Fold 2: train levels [1,3,4,6]  test levels [2,5]
-  Fold 3: train levels [1,2,4,5]  test levels [3,6]
+Fold splits (leave-one-group-out):
+  Fold 1: train groups [2,3]  test groups [1]
+  Fold 2: train groups [1,3]  test groups [2]
+  Fold 3: train groups [1,2]  test groups [3]
 
 Output: context_indep_datasets/train_M2_fold1.csv ... (24 files total)
 """
 
 import pandas as pd
 from config import (
-    NORMAL_PKL, ATTACK_PKL,
+    NORMAL_PKL_CONTEXT as NORMAL_PKL,
+    ATTACK_PKL_CONTEXT as ATTACK_PKL,
     CONTEXT_DIR, SCENARIOS, CONTEXT_FOLDS,
 )
 from utils import load_pkl_as_df, drop_meta_cols
@@ -23,36 +24,33 @@ from utils import load_pkl_as_df, drop_meta_cols
 def main():
     CONTEXT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # ---- Load data ----
     print("Loading PKL files...")
     df_normal = load_pkl_as_df(NORMAL_PKL, "normal")
     df_attack  = load_pkl_as_df(ATTACK_PKL, "attack")
 
     df_all = pd.concat([df_normal, df_attack], ignore_index=True)
 
-    # Drop rows with invalid cognitive level or label
     n_before = len(df_all)
     df_all = df_all[
-        df_all["cognitive_level"].notna() & (df_all["label"] != -1)
+        df_all["group_id"].notna() & (df_all["label"] != -1)
     ].copy()
-    df_all["cognitive_level"] = df_all["cognitive_level"].astype(int)
-    df_all["session"]         = df_all["session"].astype(int)
+    df_all["group_id"] = df_all["group_id"].astype(int)
+    df_all["session"]  = df_all["session"].astype(int)
     print(f"Valid rows: {len(df_all)} / {n_before}")
     print(f"  Labels: {sorted(df_all['label'].unique())}")
-    print(f"  Cognitive levels: {sorted(df_all['cognitive_level'].unique())}")
-    print(f"  Users: {df_all['user_id'].nunique()}")
+    print(f"  Groups: {sorted(df_all['group_id'].unique())}")
+    print(f"  Users:  {df_all['user_id'].nunique()}")
 
-    # ---- Generate 3 folds × 4 scenarios ----
     print("\nGenerating context-independent datasets...")
     for fold_cfg in CONTEXT_FOLDS:
-        fold        = fold_cfg["fold"]
-        train_lvls  = fold_cfg["train_levels"]
-        test_lvls   = fold_cfg["test_levels"]
+        fold         = fold_cfg["fold"]
+        train_groups = fold_cfg["train_groups"]
+        test_groups  = fold_cfg["test_groups"]
 
-        print(f"\n  Fold {fold} | train levels {train_lvls} | test levels {test_lvls}")
+        print(f"\n  Fold {fold} | train groups {train_groups} | test groups {test_groups}")
 
-        # Test set: ALL users, test cognitive levels, all 5 labels
-        df_test = df_all[df_all["cognitive_level"].isin(test_lvls)].copy()
+        # Test: ALL users, test groups, all labels
+        df_test = df_all[df_all["group_id"].isin(test_groups)].copy()
         df_test = df_test.sample(frac=1, random_state=42).reset_index(drop=True)
         df_test_out = drop_meta_cols(df_test)
 
@@ -60,9 +58,9 @@ def main():
             train_frames = []
             for source, sessions in conditions:
                 mask = (
-                    (df_all["source"]          == source) &
-                    (df_all["session"].isin(sessions)) &
-                    (df_all["cognitive_level"].isin(train_lvls))
+                    (df_all["source"]        == source) &
+                    df_all["session"].isin(sessions) &
+                    df_all["group_id"].isin(train_groups)
                 )
                 train_frames.append(df_all[mask])
 
