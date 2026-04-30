@@ -34,10 +34,18 @@ BIGRAM_KEYS = set(string.ascii_lowercase) | {" "}   # bigrams only over a-z + sp
 # ============================================================
 # SUMMARIZE A LIST → 6 STATISTICS  (with IQR outlier removal)
 # ============================================================
+TIMING_MIN_MS = 50.0
+TIMING_MAX_MS = 5000.0
+
 def summarize(values: list) -> dict:
     if not values:
         return {"mean": 0.0, "std": 0.0, "s/m": 0.0, "range": 0.0, "max": 0.0, "median": 0.0}
     arr = np.array(values, dtype=float)
+    # Step 1: hard range filter [50, 5000] ms
+    arr = arr[(arr >= TIMING_MIN_MS) & (arr <= TIMING_MAX_MS)]
+    if len(arr) == 0:
+        return {"mean": 0.0, "std": 0.0, "s/m": 0.0, "range": 0.0, "max": 0.0, "median": 0.0}
+    # Step 2: IQR × 2 outlier removal
     q1, q3 = np.percentile(arr, 25), np.percentile(arr, 75)
     iqr = q3 - q1
     arr = arr[(arr >= q1 - 2 * iqr) & (arr <= q3 + 2 * iqr)]
