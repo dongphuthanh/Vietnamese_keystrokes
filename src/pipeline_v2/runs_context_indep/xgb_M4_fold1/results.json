@@ -4,47 +4,47 @@
   "n_train": 600,
   "n_test": 375,
   "n_features_total": 774,
-  "n_features_selected": 154,
-  "feature_percentage": 20.0,
+  "n_features_selected": 387,
+  "feature_percentage": 50.0,
   "random_state": 42,
-  "ga_best_cv_accuracy": 0.7016666666666668,
+  "ga_best_cv_accuracy": null,
   "best_params": {
-    "max_depth": 5,
-    "learning_rate": 0.1,
-    "n_estimators": 550,
+    "max_depth": 8,
+    "learning_rate": 0.3,
+    "n_estimators": 200,
     "subsample": 0.6,
-    "colsample_bytree": 0.7
+    "colsample_bytree": 0.6
   },
-  "test_accuracy": 0.5413333333333333,
-  "test_weighted_f1": 0.4704506740345901,
+  "test_accuracy": 0.5333333333333333,
+  "test_weighted_f1": 0.46241418285991925,
   "confusion_matrix": [
     [
-      53,
-      16,
-      6,
-      0,
-      0
-    ],
-    [
-      20,
-      45,
-      10,
+      50,
+      18,
+      7,
       0,
       0
     ],
     [
       21,
-      24,
-      30,
+      47,
+      7,
+      0,
+      0
+    ],
+    [
+      16,
+      31,
+      28,
       0,
       0
     ],
     [
       0,
+      1,
       0,
       0,
-      0,
-      75
+      74
     ],
     [
       0,

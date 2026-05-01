@@ -7,49 +7,49 @@
   "n_features_selected": 387,
   "feature_percentage": 50.0,
   "random_state": 42,
-  "ga_best_cv_accuracy": 0.78,
+  "ga_best_cv_accuracy": null,
   "best_params": {
-    "max_depth": 6,
+    "max_depth": 8,
     "learning_rate": 0.3,
     "n_estimators": 200,
     "subsample": 0.6,
     "colsample_bytree": 0.6
   },
-  "test_accuracy": 0.2613333333333333,
-  "test_weighted_f1": 0.15054080321033325,
+  "test_accuracy": 0.27466666666666667,
+  "test_weighted_f1": 0.1616554054054054,
   "confusion_matrix": [
     [
-      61,
+      60,
       0,
-      14,
-      0,
-      0
-    ],
-    [
-      52,
-      0,
-      23,
+      15,
       0,
       0
     ],
     [
-      38,
+      53,
       0,
-      37,
-      0,
-      0
-    ],
-    [
-      63,
-      0,
-      12,
+      22,
       0,
       0
     ],
     [
-      45,
+      32,
       0,
-      30,
+      43,
+      0,
+      0
+    ],
+    [
+      64,
+      0,
+      11,
+      0,
+      0
+    ],
+    [
+      49,
+      0,
+      26,
       0,
       0
     ]

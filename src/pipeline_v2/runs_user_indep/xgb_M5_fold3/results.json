@@ -1,0 +1,64 @@
+{
+  "train_csv": "C:\\Users\\ADMIN\\Documents\\Vietnamese_keystrokes\\src\\pipeline_v2\\user_indep_datasets\\train_M5_fold3.csv",
+  "test_csv": "C:\\Users\\ADMIN\\Documents\\Vietnamese_keystrokes\\src\\pipeline_v2\\user_indep_datasets\\test_M5_fold3.csv",
+  "n_train": 235,
+  "n_test": 140,
+  "n_features_total": 774,
+  "n_features_selected": 387,
+  "feature_percentage": 50.0,
+  "random_state": 42,
+  "ga_best_cv_accuracy": 0.5234042553191489,
+  "best_params": {
+    "max_depth": 6,
+    "learning_rate": 0.1,
+    "n_estimators": 550,
+    "subsample": 1.0,
+    "colsample_bytree": 0.6
+  },
+  "test_accuracy": 0.6214285714285714,
+  "test_weighted_f1": 0.6215936030959679,
+  "confusion_matrix": [
+    [
+      16,
+      8,
+      4,
+      0,
+      0
+    ],
+    [
+      8,
+      14,
+      6,
+      0,
+      0
+    ],
+    [
+      5,
+      7,
+      16,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      22,
+      6
+    ],
+    [
+      0,
+      0,
+      0,
+      9,
+      19
+    ]
+  ],
+  "labels": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}

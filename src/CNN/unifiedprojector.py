@@ -18,10 +18,10 @@ import random
 # ---------------------------------------------------------
 USE_DWELL_TIME = False  # TOGGLE: True to use make_windows_with_up, False for standard
 VOTING_MODE = 'soft'  
-SCENARIO = 'M5'       
-OPTUNA_TRIALS = 10
+SCENARIO = 'M4'       
+OPTUNA_TRIALS = 0
 OPTUNA_EPOCHS = 30    
-FINAL_EPOCHS = 50
+FINAL_EPOCHS = 30
 HIDDEN_DIM = 128
 WIN_LENGTH = 100
 STRIDE = 50
@@ -273,7 +273,7 @@ def make_windows(filepath, X, Y, ID, FILE_ID, Q_ID, user_id, file_id, win_length
             window = []
             for j in range(i, i + win_length):
                 dt = np.clip(keys[j]["timestamp"] - keys[j - 1]["timestamp"], 1, 5000)
-                key_id = get_key_id_from_code(keys[j]["code"])
+                key_id = get_key_id(keys[j]["key"])
                 window.append([np.log(dt), key_id])
 
             X.append(window)
@@ -340,7 +340,7 @@ def make_windows_with_up(filepath, X, Y, ID, FILE_ID, Q_ID, user_id, file_id, wi
 # ---------------------------------------------------------
 X, Y, ID, FILE_ID, Q_ID = [], [], [], [], []
 
-folder_path = "../../dataset/Korean"
+folder_path = "../../dataset/Attack4"  # CHANGE THIS to your dataset path
 user_folders = sorted([d for d in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, d))])
 user2id = {user: i for i, user in enumerate(user_folders)}
 
@@ -409,7 +409,7 @@ for fold in range(n_splits):
     QID_train_full = Q_ID[train_content_mask]
     
     def objective(trial):
-        lr = trial.suggest_float('lr', 1e-3, 2e-3, log=True)
+        lr = trial.suggest_float('lr', 1e-4, 2e-3, log=True)
 
         
         gss = GroupShuffleSplit(n_splits=1, test_size=0.25, random_state=42)
@@ -483,7 +483,7 @@ for fold in range(n_splits):
 
     sampler = TPESampler(seed=42)
     study_name = f"context_scenario_M5_fold_{fold + 1}"
-    study = optuna.create_study(direction="maximize",study_name=study_name, sampler=sampler, storage="sqlite:///koreancnncie.db", load_if_exists=True)
+    study = optuna.create_study(direction="maximize",study_name=study_name, sampler=sampler, storage="sqlite:///finalcnncie.db", load_if_exists=True)
     study.optimize(objective, n_trials=OPTUNA_TRIALS,
                    callbacks=[
             EarlyStoppingCallback(patience=35),

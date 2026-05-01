@@ -1,16 +1,16 @@
 o->o_s/m
 backspace_mean
-backspace_median
 e->e_s/m
+backspace_median
 o->o_std
 a->a_s/m
 e->e_std
 e->e_range
 backspace_std
-backspace_max
 o->o_range
 d->d_s/m
 n->h_s/m
+backspace_max
 d->d_range
 backspace_range
 backspace_s/m
@@ -73,8 +73,6 @@ h->u_median
 h->o_std
 x-> _s/m
 j-> _rkd_s/m
-t_median
-o_median
 f-> _rkd_median
 o->n_rkd_s/m
 c->o_mean
@@ -82,33 +80,34 @@ t->r_mean
 o-> _rkd_std
 t->r_range
 c->h_median
- _median
 n-> _std
 n-> _rkd_s/m
 o->n_std
 n_s/m
 f-> _rkd_mean
+ _median
 h->a_mean
 r-> _range
 u->o_s/m
 e->n_range
 h->u_s/m
 r-> _std
+f_median
+t_median
 s-> _rkd_range
 g-> _std
 t->h_median
-f_median
 r-> _rkd_median
+o_median
+v_mean
 y_s/m
 g_s/m
-v_mean
  _mean
 r_s/m
 t_s/m
 h-> _rkd_median
 r-> _max
 d_s/m
-q_mean
 i-> _rkd_range
 u->o_rkd_mean
 o->i_std
@@ -117,6 +116,7 @@ o-> _std
 k_s/m
 n->g_mean
 j-> _rkd_max
+j_s/m
  ->h_rkd_range
 o-> _rkd_s/m
 o-> _rkd_max
@@ -129,26 +129,259 @@ r_mean
 x_s/m
 h->o_median
 x-> _rkd_s/m
-j_s/m
-o->w_rkd_s/m
 l_s/m
+o->w_rkd_s/m
+m_median
  ->s_mean
 h_s/m
+n_median
  ->d_rkd_std
  ->v_rkd_median
+q_median
  ->c_rkd_s/m
 a->f_s/m
  ->t_median
 e->e_rkd_s/m
+q_mean
 h->i_rkd_s/m
 f-> _rkd_std
-n_median
+v_median
  ->t_mean
  ->n_range
 r-> _rkd_mean
-g_median
 h->a_median
 n-> _max
 h->a_s/m
+k_std
+z_std
 n->h_rkd_s/m
 o->w_mean
+x-> _max
+i_std
+h->u_mean
+j-> _rkd_mean
+b_median
+ ->c_median
+ ->t_rkd_mean
+g_median
+w_s/m
+h->o_rkd_mean
+e->n_rkd_s/m
+ ->d_max
+i-> _std
+c->a_rkd_mean
+v->a_s/m
+h->i_rkd_range
+ ->v_rkd_mean
+i-> _s/m
+ ->h_range
+g_mean
+b_mean
+ ->m_mean
+o->i_range
+ ->l_rkd_s/m
+h->o_mean
+s-> _rkd_max
+a_s/m
+ ->k_rkd_s/m
+n->h_rkd_median
+s_median
+u_median
+h-> _rkd_mean
+n->g_median
+m_s/m
+i->e_rkd_mean
+c->a_std
+t->r_rkd_s/m
+h_mean
+n-> _range
+h->u_rkd_mean
+u->o_rkd_s/m
+ ->d_rkd_max
+w->n_median
+o-> _rkd_range
+i->e_mean
+t_mean
+r_range
+ ->t_s/m
+o->w_median
+d->o_std
+n->g_rkd_s/m
+d->o_mean
+g->i_mean
+g->i_rkd_median
+o->s_std
+s_mean
+u_s/m
+v->a_std
+t->h_mean
+shift_s/m
+z_range
+h->a_rkd_range
+u->o_range
+i-> _range
+ ->l_median
+g->i_rkd_mean
+ ->g_rkd_range
+a->n_std
+ ->m_rkd_std
+s-> _rkd_s/m
+h-> _std
+c->o_median
+ ->k_rkd_max
+o->s_max
+ _std
+ ->g_s/m
+a->f_mean
+n_mean
+o->i_mean
+g-> _rkd_std
+ ->s_s/m
+ ->g_median
+v->a_rkd_median
+ ->d_median
+h->a_range
+h->i_range
+ ->s_median
+x_median
+e->e_max
+t->h_s/m
+o_mean
+ ->k_rkd_range
+q_range
+e->n_rkd_std
+c_mean
+ ->s_rkd_range
+e->e_rkd_mean
+g->i_rkd_std
+h-> _s/m
+c->a_s/m
+e->n_rkd_range
+j_median
+i-> _rkd_std
+o-> _rkd_median
+h->a_rkd_max
+s-> _rkd_median
+ ->s_rkd_mean
+c_median
+ ->t_rkd_std
+a_mean
+n->g_rkd_median
+k_range
+x-> _rkd_median
+d->o_range
+e_mean
+m_mean
+d->d_max
+ ->t_range
+x-> _rkd_mean
+s-> _mean
+i_mean
+i_s/m
+j_mean
+n->h_rkd_max
+n->h_rkd_mean
+c_range
+i->e_median
+d->d_rkd_s/m
+q_s/m
+u->w_rkd_range
+ ->c_rkd_max
+o->n_rkd_median
+j-> _mean
+ ->d_rkd_range
+c->h_rkd_std
+w_mean
+ ->g_rkd_std
+ ->n_mean
+o->o_rkd_s/m
+ ->m_range
+h->i_std
+i->e_s/m
+i-> _max
+e->n_std
+c->a_max
+o->o_rkd_max
+ ->d_mean
+f-> _rkd_s/m
+h->i_rkd_std
+x-> _rkd_std
+n->g_std
+n->g_rkd_range
+u->o_rkd_range
+h-> _rkd_max
+ ->k_rkd_std
+o->o_max
+v->a_median
+d->d_rkd_mean
+ ->h_rkd_s/m
+g->i_s/m
+n->g_rkd_mean
+o_range
+h-> _rkd_s/m
+u->o_std
+p_median
+h->u_std
+ _max
+i->e_std
+w_median
+g_range
+a->n_range
+ ->v_rkd_s/m
+x-> _rkd_range
+o->w_rkd_mean
+u->o_rkd_max
+shift_max
+shift_range
+f_range
+p_mean
+ ->l_mean
+r-> _rkd_max
+c->a_range
+z_median
+d_mean
+x_mean
+o->s_median
+a->f_median
+ ->g_std
+d_median
+p_s/m
+h->a_rkd_median
+ ->n_rkd_range
+d->d_rkd_median
+ ->c_range
+a->a_rkd_median
+d->o_max
+n-> _rkd_max
+o->i_max
+ ->h_median
+d->o_rkd_std
+ ->h_rkd_std
+ ->l_rkd_std
+d->d_rkd_std
+i-> _rkd_mean
+n-> _rkd_std
+ ->k_range
+u->w_mean
+v->a_mean
+h->a_max
+q_std
+e->n_rkd_mean
+i-> _rkd_median
+o->n_rkd_std
+ ->c_rkd_range
+o->w_std
+ ->n_max
+t_range
+o-> _max
+ ->h_std
+o->s_range
+f_mean
+ ->t_rkd_range
+j_range
+c->a_rkd_s/m
+u->o_rkd_std
+a->f_rkd_mean
+g-> _rkd_s/m
+g-> _max
+o->n_rkd_range

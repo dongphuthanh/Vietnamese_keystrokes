@@ -18,10 +18,10 @@ import random
 # PARAMETERS
 # ---------------------------------------------------------
 VOTING_MODE = 'soft'  
-SCENARIO = 'M2'       
-OPTUNA_TRIALS = 0   
+SCENARIO = 'M5'       
+OPTUNA_TRIALS = 30   
 OPTUNA_EPOCHS = 30
-FINAL_EPOCHS = 50
+FINAL_EPOCHS = 30
 HIDDEN_DIM = 128
 WIN_LENGTH = 100
 STRIDE = 50
@@ -347,7 +347,7 @@ for fold, (train_user_idx, test_user_idx) in enumerate(kf.split(unique_users)):
     FID_train_full = FILE_ID[train_idx]
     
     def objective(trial):
-        lr = trial.suggest_float('lr', 1e-3, 2e-3, log=True)
+        lr = trial.suggest_float('lr', 1e-4, 2e-3, log=True)
 
         # --- 75/25 USER-INDEPENDENT SPLIT ---
         # n_splits=1 means it only generates one train/val pair instead of looping
