@@ -1,0 +1,4 @@
+Run order (each script processes the JSON files under its folder_path in place):
+step1_clean_unikey -> step2_pair_keydown_keyup -> step3_sort_by_timestamp -> step4_merge_session_files -> step5_add_question_index
+User37 (raw data in 3 session files, Japanese-layout keyboard):
+step1_clean_unikey_user37 -> step2_pair_keydown_keyup -> step3_sort_by_timestamp -> step4_merge_session_files_user37 -> step5_add_question_index

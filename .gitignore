@@ -17,3 +17,7 @@ dataset/
 dist/
 build/
 
+# Local re-run outputs (not the paper's results)
+src/rhythmic_features/output/
+src/sequential_models/logs/
+

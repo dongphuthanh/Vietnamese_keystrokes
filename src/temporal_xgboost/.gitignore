@@ -1,0 +1,15 @@
+# Large binary data
+pkl/
+# context_indep_datasets/ and user_indep_datasets/ are tracked on purpose:
+# they are the exact train/test CSVs behind the paper's Temporal results.
+
+# Trained models
+**/*.joblib
+
+# Intermediate outputs
+**/mutual_info_ranking.csv
+
+# Override root .gitignore — allow results
+!*.json
+!*.csv
+**/mutual_info_ranking.csv
