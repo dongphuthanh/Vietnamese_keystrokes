@@ -1,0 +1,177 @@
+ html, body {
+  margin: 0;
+  padding: 0;
+}
+
+* {
+  box-sizing: border-box; /* Ensure padding and border are included in the element's total width and height */
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f9;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh; /* Use min-height for full viewport height */
+  overflow: auto;
+}
+
+.container {
+  text-align: left;
+  padding: 20px;
+}
+
+.introduction, #container {
+  background: #fff;
+  padding: 20px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  max-width: 800px;
+  width: 100%;
+  margin-top: 20px;
+}
+
+h1, h2 {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: 24px;
+}
+
+h2 {
+  font-size: 20px;
+  text-align: center;
+}
+
+p {
+  font-size: 18px;
+  color: #666;
+}
+
+.question {
+  margin-bottom: 20px;
+  text-align: left; /* Ensure questions are not centered */
+}
+
+.question .input {
+  width: 100%; /* Ensure the input field takes up 100% width of its container */
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 18px;
+  resize: vertical;
+}
+
+.word-count {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.button-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.btn {
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.btn:hover {
+  background-color: #0056b3;
+}
+
+.center-text {
+  text-align: center;
+}
+
+.alert {
+  background-color: #f44336;
+  color: white;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 4px;
+  text-align: center;
+  display: block; /* Ensure the alert is always visible */
+}
+
+.error-message {
+  color: red;
+  margin-top: 10px;
+}
+
+/* Improved form layout */
+.form-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.centered-form {
+  text-align: center;
+}
+
+.form-group {
+  text-align: left;
+  width: 100%;
+  max-width: 300px;
+}
+
+input[type="radio"], input[type="number"], select {
+  margin-top: 8px;
+}
+
+#language-selection {
+  margin-bottom: 20px;
+}
+
+.required {
+  color: red;
+}
+
+.error-popup {
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #f44336;
+  color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: none;
+}
+
+.instruction-box {
+  background-color: #f0f8ff; /* Light blue background */
+  border: 1px solid #c1c7cd; /* Gray border */
+  padding: 15px; /* Padding inside the box */
+  border-radius: 8px; /* Rounded corners */
+  margin-bottom: 20px; /* Space below the instruction box */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+}
+
+.instruction-box ul {
+  padding-left: 20px; /* Space for the bullet points */
+}
+
+.instruction-box li {
+  margin-bottom: 10px; /* Space between list items */
+  font-size: 18px; /* Consistent font size */
+  color: #333; /* Darker text color */
+}

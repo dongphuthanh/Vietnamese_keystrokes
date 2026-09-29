@@ -21,3 +21,9 @@ build/
 src/rhythmic_features/output/
 src/sequential_models/logs/
 
+# Reference rhythmic results reported in the paper (tracked)
+!src/rhythmic_features/results/**/*.csv
+
+# Paper source (kept locally, not published with the code)
+main-camera-ready.tex
+

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Keystroke Dynamics Research</title>
+  <!-- Thư viện p5.js và script.js của bạn -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <script src="script.js" defer></script>
+  <link rel="stylesheet" href="style.css">
+
+  <script>
+    // Khi DOM load xong, tắt spellcheck cho toàn bộ input/textarea
+    document.addEventListener("DOMContentLoaded", function() {
+      // Tắt spellcheck ở body (kế thừa xuống con)
+      document.body.setAttribute("spellcheck", "false");
+      // Phòng trường hợp có input/textarea thêm sau, vẫn tắt được
+      document.querySelectorAll("input, textarea").forEach(function(el) {
+        el.setAttribute("spellcheck", "false");
+      });
+    });
+
+    // Hàm gọi khi đổi ngôn ngữ
+    function setLanguage(lang) {
+      // Đổi lang trên <html> để trình duyệt dùng đúng từ điển
+      document.documentElement.lang = lang;
+
+      // Nếu bạn còn update nội dung text theo ngôn ngữ, gọi vào đây...
+      // Ví dụ:
+      // if (lang === 'vi') { /* load text tiếng Việt */ }
+      // else { /* load English */ }
+    }
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1 class="center-text" id="title">Keystroke Dynamics Research</h1>
+
+    <!-- Language Selection -->
+    <div class="center-text" id="language-selection">
+      <label for="language">Select Language:</label>
+      <select id="language" onchange="setLanguage(this.value)">
+        <option value="en">English</option>
+        <option value="vi">Vietnamese</option>
+      </select>
+    </div>
+
+    <!-- Introduction -->
+    <div id="introduction" class="introduction">
+      <p id="introduction-text">
+        Traditional plagiarism detection tools, which primarily rely on direct comparisons between a user’s input and existing sources, often struggle to identify more sophisticated forms of cheating, such as extensive paraphrasing or the use of external assistance, including generative AI or other individuals.
+      </p>
+      <p id="objective-text">
+        Thus, this study aims to address academic dishonesty in writing by analyzing typing patterns and examining the differences in typing dynamics when individuals write directly compared to when they refer to or copy responses from ChatGPT. These differences are characterized by variations in thinking time, typing speed, and the frequency of editing actions during the writing process.
+      </p>
+
+      <p><strong id="data-collection-process">Data Collection Process:</strong></p>
+
+      <p id="data-collection-description">There are three different sessions for collecting data. In each session, participants will respond to six questions using 90-150 words each, which are designed to invoke various cognitive load levels.</p>
+      <ul id="data-collection-steps">
+        <li id="session1-description"><strong>Bonafide Writing Session:</strong> In this session, participants need to generate responses to each question independently, without any external assistance.</li>
+        <li id="session2-description"><strong>Paraphrasing ChatGPT Session:</strong> In this session, participants will feed each question to ChatGPT, then paraphrase the generated response. Paraphrasing is the act of restating a piece of text in your own words while retaining the original meaning.</li>
+        <li id="session3-description"><strong>Retyping ChatGPT Session:</strong> In this session, participants will feed each prompt (including the word requiremet) to ChatGPT, then retype the generated response, focusing on accurately transcribing the provided answers.</li>
+      </ul>
+
+      <p><strong id="evaluation-criteria">Evaluation Criteria:</strong></p>
+      <p id="evaluation-description">Upon submission, participant responses will be evaluated based on several criteria:</p>
+      <ul id="evaluation-criteria-list">
+        <li id="grammatical-accuracy"><strong>Grammatical Accuracy</strong></li>
+        <li id="relevance"><strong>Relevance</strong></li>
+        <li id="length"><strong>Length</strong></li>
+      </ul>
+      <p id="violation-note"></p>
+      <button id="participateButton" class="btn center-text">Participate</button>
+    </div>
+
+    <!-- User Information Form -->
+    <div id="user-info-form" class="centered-form" style="display: none;">
+      <h2 class="center-text" id="user-info-title">Please provide your information to proceed:</h2>
+      <form id="userInfoForm" class="form-center">
+        <div class="form-group">
+          <label for="gender" id="gender-label">Gender:<span class="required">*</span></label><br>
+          <input type="radio" id="male" name="gender" value="Male" required>
+          <label for="male" id="male-label">Male</label>
+          <input type="radio" id="female" name="gender" value="Female" required>
+          <label for="female" id="female-label">Female</label>
+          <input type="radio" id="other" name="gender" value="Other" required>
+          <label for="other" id="other-label">Other</label>
+        </div>
+        
+        <div class="form-group">
+          <label for="age" id="age-label">Age:<span class="required">*</span></label><br>
+          <input type="number" id="age" name="age" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="handedness" id="handedness-label">Handedness:<span class="required">*</span></label><br>
+          <input type="radio" id="right-handed" name="handedness" value="Right-handed" required>
+          <label for="right-handed" id="right-handed-label">Right-handed</label>
+          <input type="radio" id="left-handed" name="handedness" value="Left-handed" required>
+          <label for="left-handed" id="left-handed-label">Left-handed</label>
+        </div>
+        
+        <div class="form-group">
+          <label for="vietnamese-proficiency" id="vietnamese-proficiency-label">Proficiency in Vietnamese:</label><br>
+          <select id="vietnamese-proficiency" name="vietnamese-proficiency">
+            <option value="" selected disabled id="choose-label">Choose</option>
+            <option value="Expert" id="expert-label">Expert</option>
+            <option value="Standard" id="standard-label">Standard</option>
+            <option value="Average" id="average-label">Average</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="education-level" id="education-level-label">Education Level:</label><br>
+          <select id="education-level" name="education-level">
+            <option value="" selected disabled id="choose-education-label">Choose</option>
+            <option value="High School" id="highschool-label">High School</option>
+            <option value="Undergraduate" id="undergraduate-label">Undergraduate</option>
+            <option value="Graduate" id="graduate-label">Graduate</option>
+          </select>
+        </div>
+        
+        <button type="submit" class="btn center-text" id="proceed-button">Proceed to Questions</button>
+      </form>
+      <div id="error-message" class="error-message"></div>
+    </div>
+
+    <!-- Form for Data Collection (Placeholder) -->
+    <form id="dataForm" spellcheck="false">
+      <input type="hidden" id="keystrokes" name="keystrokes">
+    </form>
+
+    <div id="container" style="display: none;"></div>
+  </div>
+</body>
+</html>
